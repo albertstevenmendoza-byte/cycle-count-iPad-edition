@@ -20,43 +20,32 @@
         }
 
         /*
-         * iPad PWA KEYBOARD FIX
-         * 
-         * Three critical rules for standalone iOS web apps:
+         * iOS PWA KEYBOARD FIX
+         * The standalone PWA context (apple-mobile-web-app-capable) breaks the
+         * normal tap → focus → keyboard flow. The ONLY reliable fix is to call
+         * .focus() directly inside a touchstart or touchend handler, which keeps
+         * it inside the user gesture stack. All other CSS tricks are secondary.
          *
-         * 1. font-size >= 16px on ALL inputs — iOS auto-zooms (and sometimes
-         *    suppresses the keyboard) on inputs with font-size < 16px.
-         *
-         * 2. -webkit-user-select: text — without this, iOS treats the field as
-         *    non-editable in standalone mode and ignores the tap.
-         *
-         * 3. touch-action: manipulation — disables double-tap-to-zoom on the
-         *    element so the first tap registers as a focus event, not a zoom.
-         *
-         * DO NOT use pointer-events tricks; they fight the browser's tap handler.
-         * DO NOT call .focus() programmatically on page load or inside setTimeout
-         * without a direct user-gesture chain — iOS blocks it in standalone mode.
+         * font-size >= 16px prevents iOS auto-zoom which also suppresses keyboard.
          */
         input, textarea {
-            font-size: 16px !important;        /* prevents iOS auto-zoom + keyboard suppression */
+            font-size: 16px !important;
             -webkit-user-select: text !important;
             user-select: text !important;
             touch-action: manipulation !important;
-            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.15);
             cursor: text;
+            -webkit-text-fill-color: inherit;
         }
 
         .card-verified { border-top: 6px solid #22c55e; background-color: #f0fdf4; }
-        .card-missing { border-top: 6px solid #ef4444; background-color: #fef2f2; opacity: 0.8; }
-        .card-extra { border-top: 6px solid #f97316; background-color: #fff7ed; }
-        .card-error { border: 2px solid #ef4444 !important; animation: shake 0.2s ease-in-out 0s 2; }
-        .nav-active { background-color: #3b82f6; color: white; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3); }
+        .card-missing  { border-top: 6px solid #ef4444; background-color: #fef2f2; opacity: 0.8; }
+        .card-extra    { border-top: 6px solid #f97316; background-color: #fff7ed; }
+        .card-error    { border: 2px solid #ef4444 !important; animation: shake 0.2s ease-in-out 0s 2; }
+        .nav-active    { background-color: #3b82f6; color: white; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
         
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(5px)} 75%{transform:translateX(-5px)} }
         @media print { .no-print { display: none; } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-
-        /* Ensure tappable buttons don't intercept input taps */
         button { touch-action: manipulation; }
     </style>
 </head>
@@ -66,14 +55,16 @@
     <header class="bg-slate-900 text-white p-4 shadow-xl shrink-0 no-print flex justify-between items-center">
         <div class="flex items-center gap-4">
             <div class="bg-blue-600 p-2 rounded-xl shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+                </svg>
             </div>
             <h1 class="text-xl font-black uppercase tracking-tighter">SAP Auditor</h1>
         </div>
-
         <div class="flex items-center gap-4">
-            <input type="file" id="sap-upload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg" style="touch-action: manipulation;">
+            <input type="file" id="sap-upload" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileUpload(event)">
+            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg">
                 Load SAP File
             </label>
             <button onclick="clearAllData()" class="text-slate-500 hover:text-red-400 font-bold uppercase text-xs px-2">Reset</button>
@@ -83,37 +74,24 @@
     <!-- Navigation -->
     <nav class="bg-white border-b flex p-2 no-print shrink-0 justify-center">
         <div class="flex bg-slate-100 p-1.5 rounded-2xl w-full max-w-2xl shadow-inner">
-            <button id="nav-audit" onclick="switchView('audit')" class="flex-1 py-3 rounded-xl font-black text-sm transition-all nav-active uppercase tracking-widest">Audit Mode</button>
+            <button id="nav-audit"  onclick="switchView('audit')"  class="flex-1 py-3 rounded-xl font-black text-sm transition-all nav-active uppercase tracking-widest">Audit Mode</button>
             <button id="nav-report" onclick="switchView('report')" class="flex-1 py-3 rounded-xl font-black text-sm transition-all text-slate-400 uppercase tracking-widest">Live Report</button>
         </div>
     </nav>
 
     <!-- AUDIT VIEW -->
     <main id="view-audit" class="flex-1 flex flex-col overflow-hidden">
-        
-        <!-- BIN INPUT AREA -->
+
+        <!-- BIN INPUT -->
         <div class="p-4 bg-white border-b shadow-sm shrink-0">
             <div class="max-w-4xl mx-auto flex gap-4">
                 <div class="flex-1">
-                    <!--
-                        KEY iPad PWA ATTRIBUTES on this input:
-                        - inputmode="text"       → tells iOS which keyboard layout to show
-                        - autocomplete="off"     → prevents iOS suggestion bar from eating the tap
-                        - autocorrect="off"      → stops autocorrect UI from intercepting first tap
-                        - autocapitalize="characters" → uppercase for bin IDs
-                        - spellcheck="false"     → no red underlines fighting touch targets
-                    -->
-                    <input 
-                        type="text" 
-                        id="bin-input" 
-                        placeholder="TAP HERE — TYPE BIN ID" 
+                    <input type="text" id="bin-input"
+                        placeholder="TAP HERE — TYPE BIN ID"
+                        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                         inputmode="text"
-                        autocomplete="off"
-                        autocorrect="off"
-                        autocapitalize="characters"
-                        spellcheck="false"
                         class="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-blue-700 uppercase focus:border-blue-500 outline-none transition-all"
-                        style="font-size: 20px;"
+                        style="font-size:20px;"
                         oninput="suggestBins(this.value)">
                 </div>
                 <div class="flex flex-col justify-center items-center bg-slate-900 text-white px-8 rounded-2xl">
@@ -148,25 +126,18 @@
     <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden p-6 space-y-4">
         <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col space-y-4 overflow-hidden">
             <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-                <button onclick="filterReport('move')" id="f-move" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Movements</button>
-                <button onclick="filterReport('adj')" id="f-adj" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Adjustments</button>
+                <button onclick="filterReport('move')"     id="f-move"     class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Movements</button>
+                <button onclick="filterReport('adj')"      id="f-adj"      class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Adjustments</button>
                 <button onclick="filterReport('inactive')" id="f-inactive" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Inactive</button>
-                <button onclick="filterReport('missing')" id="f-missing" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Missing</button>
+                <button onclick="filterReport('missing')"  id="f-missing"  class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Missing</button>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3 bg-white rounded-3xl p-4 border border-slate-200 shadow-inner" id="report-body"></div>
             <div class="bg-slate-900 p-6 rounded-3xl no-print flex flex-col md:flex-row items-center gap-4">
                 <div class="flex-1 flex items-center gap-2 w-full">
-                    <input 
-                        type="text" 
-                        id="email-user" 
-                        placeholder="Novus Username" 
-                        inputmode="email"
-                        autocomplete="username"
-                        autocorrect="off"
-                        autocapitalize="none"
-                        spellcheck="false"
+                    <input type="text" id="email-user" placeholder="Novus Username"
+                        inputmode="email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
                         class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-blue-500"
-                        style="font-size: 16px;">
+                        style="font-size:16px;">
                     <span class="text-slate-500 font-black">@novusfoods.com</span>
                 </div>
                 <button onclick="sendEmailReport()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black uppercase text-sm shadow-lg">Email Report</button>
@@ -180,63 +151,28 @@
             <h2 class="text-2xl font-black uppercase text-slate-800">Add Physical Item</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
-                    <input 
-                        type="text" 
-                        id="add-hu" 
-                        placeholder="HU Number (0 if missing)" 
-                        inputmode="numeric"
-                        autocomplete="off"
-                        autocorrect="off"
-                        autocapitalize="none"
-                        spellcheck="false"
+                    <input type="text" id="add-hu" placeholder="HU Number (0 if missing)"
+                        inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
                         class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
-                        style="font-size: 16px;"
-                        oninput="autoLookupExtra(this)">
+                        style="font-size:16px;" oninput="autoLookupExtra(this)">
                 </div>
                 <div class="col-span-2">
-                    <input 
-                        type="text" 
-                        id="add-prod" 
-                        placeholder="Product ID" 
-                        inputmode="text"
-                        autocomplete="off"
-                        autocorrect="off"
-                        autocapitalize="characters"
-                        spellcheck="false"
+                    <input type="text" id="add-prod" placeholder="Product ID"
+                        inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
                         class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
-                        style="font-size: 16px;">
+                        style="font-size:16px;">
                 </div>
-                <input 
-                    type="text" 
-                    id="add-batch" 
-                    placeholder="Batch" 
-                    inputmode="text"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="none"
-                    spellcheck="false"
-                    class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none"
-                    style="font-size: 16px;">
-                <input 
-                    type="text" 
-                    id="add-uom" 
-                    placeholder="UoM" 
-                    inputmode="text"
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="characters"
-                    spellcheck="false"
-                    class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none"
-                    style="font-size: 16px;">
+                <input type="text" id="add-batch" placeholder="Batch"
+                    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+                    class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none" style="font-size:16px;">
+                <input type="text" id="add-uom" placeholder="UoM"
+                    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
+                    class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none" style="font-size:16px;">
                 <div class="col-span-2">
-                    <input 
-                        type="number" 
-                        id="add-qty" 
-                        placeholder="Counted Quantity" 
-                        inputmode="decimal"
-                        autocomplete="off"
+                    <input type="number" id="add-qty" placeholder="Counted Quantity"
+                        inputmode="decimal" autocomplete="off"
                         class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-blue-700 border-2 border-blue-200 outline-none"
-                        style="font-size: 32px;">
+                        style="font-size:32px;">
                 </div>
             </div>
             <div class="flex gap-4">
@@ -247,22 +183,42 @@
     </div>
 
     <script>
-        // --- DATA STATE ---
-        let sapMasterData = JSON.parse(localStorage.getItem('sapMasterData')) || [];
-        let auditLog = JSON.parse(localStorage.getItem('auditLog')) || []; 
-        let currentBinItems = JSON.parse(localStorage.getItem('currentBinItems')) || [];
-        let currentActiveBin = localStorage.getItem('currentActiveBin') || "";
-        let binsAudited = new Set(JSON.parse(localStorage.getItem('binsAudited')) || []);
-        let uniqueBins = [];
+        // ─── DATA STATE ────────────────────────────────────────────────────────────
+        let sapMasterData    = JSON.parse(localStorage.getItem('sapMasterData'))    || [];
+        let auditLog         = JSON.parse(localStorage.getItem('auditLog'))         || [];
+        let currentBinItems  = JSON.parse(localStorage.getItem('currentBinItems'))  || [];
+        let currentActiveBin = localStorage.getItem('currentActiveBin')             || "";
+        let binsAudited      = new Set(JSON.parse(localStorage.getItem('binsAudited')) || []);
+        let uniqueBins       = [];
 
         function saveSession() {
-            localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
-            localStorage.setItem('auditLog', JSON.stringify(auditLog));
-            localStorage.setItem('currentBinItems', JSON.stringify(currentBinItems));
+            localStorage.setItem('sapMasterData',    JSON.stringify(sapMasterData));
+            localStorage.setItem('auditLog',         JSON.stringify(auditLog));
+            localStorage.setItem('currentBinItems',  JSON.stringify(currentBinItems));
             localStorage.setItem('currentActiveBin', currentActiveBin);
-            localStorage.setItem('binsAudited', JSON.stringify(Array.from(binsAudited)));
+            localStorage.setItem('binsAudited',      JSON.stringify([...binsAudited]));
         }
 
+        // ─── iOS PWA KEYBOARD FIX ─────────────────────────────────────────────────
+        // In standalone PWA mode, iOS blocks the software keyboard unless .focus()
+        // is called synchronously inside a touchstart or touchend handler.
+        // onclick and onfocus both fire too late in the iOS event chain.
+        // This function attaches the fix once per element (guards against duplicates).
+        function attachIosFocus(el) {
+            if (el._iosFocusAttached) return;
+            el._iosFocusAttached = true;
+            el.addEventListener('touchstart', function(e) {
+                // Synchronous focus inside touchstart = inside gesture stack = keyboard opens
+                this.focus();
+            }, { passive: true });
+        }
+
+        // Attach to all inputs present at page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('input, textarea').forEach(attachIosFocus);
+        });
+
+        // ─── INIT ──────────────────────────────────────────────────────────────────
         window.onload = () => {
             if (sapMasterData.length > 0) {
                 uniqueBins = [...new Set(sapMasterData.map(i => i.sapBin))].sort();
@@ -274,9 +230,11 @@
             document.getElementById('stat-bins-done').innerText = binsAudited.size;
         };
 
-        function clearAllData() { if(confirm("Reset all session data?")){ localStorage.clear(); location.reload(); } }
+        function clearAllData() {
+            if (confirm("Reset all session data?")) { localStorage.clear(); location.reload(); }
+        }
 
-        // --- CORE LOGIC ---
+        // ─── BIN LOGIC ─────────────────────────────────────────────────────────────
         function suggestBins(val) {
             const container = document.getElementById('bin-suggestions');
             container.innerHTML = "";
@@ -284,57 +242,49 @@
             if (!query) return;
 
             if (query.length >= 2) {
-                ['A', 'B', 'C'].forEach(level => {
+                ['A','B','C'].forEach(level => {
                     const btn = document.createElement('button');
                     btn.className = "px-10 py-4 bg-blue-100 text-blue-700 rounded-2xl font-black text-xl border-2 border-blue-200 shrink-0";
                     btn.innerText = level;
-                    btn.style.touchAction = "manipulation";
                     btn.onclick = () => selectBin(query + level);
                     container.appendChild(btn);
                 });
             }
-
-            const matches = uniqueBins.filter(b => b.startsWith(query)).slice(0, 8);
-            matches.forEach(match => {
+            uniqueBins.filter(b => b.startsWith(query)).slice(0,8).forEach(match => {
                 const btn = document.createElement('button');
                 btn.className = "px-6 py-4 bg-slate-800 text-white rounded-2xl font-bold text-sm shrink-0 uppercase border-2 border-slate-700";
                 btn.innerText = match;
-                btn.style.touchAction = "manipulation";
                 btn.onclick = () => selectBin(match);
                 container.appendChild(btn);
             });
         }
 
         function selectBin(binName) {
-            const input = document.getElementById('bin-input');
-            input.value = binName;
+            document.getElementById('bin-input').value = binName;
             document.getElementById('bin-suggestions').innerHTML = "";
             currentActiveBin = binName.toUpperCase();
             const expected = sapMasterData.filter(i => i.sapBin === currentActiveBin);
-            currentBinItems = expected.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: currentActiveBin }));
+            currentBinItems = expected.map(i => ({ ...i, verified:false, isMissing:false, countQty:0, isExtra:false, scannedBin:currentActiveBin }));
             saveSession();
             renderAuditList();
-            // Dismiss keyboard after bin selection — safe because this IS inside a gesture chain
-            input.blur();
+            document.getElementById('bin-input').blur();
         }
 
-        document.getElementById('bin-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                selectBin(e.target.value);
-            }
+        document.getElementById('bin-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') selectBin(e.target.value);
         });
 
+        // ─── RENDER ────────────────────────────────────────────────────────────────
         function renderAuditList() {
             const container = document.getElementById('audit-list');
             container.innerHTML = "";
-            if (currentBinItems.length === 0 && currentActiveBin !== "") {
+            if (currentBinItems.length === 0 && currentActiveBin) {
                 container.innerHTML = `<div class="col-span-full p-20 text-center text-slate-400 italic text-sm uppercase font-black bg-white rounded-3xl border-2 border-dashed">Bin empty in SAP. Add physical items below.</div>`;
             }
-
             currentBinItems.forEach((item, index) => {
                 const card = document.createElement('div');
                 card.id = `card-${index}`;
-                card.className = `p-6 rounded-[32px] shadow-lg border bg-white transition-all flex flex-col justify-between ${item.verified ? 'card-verified' : (item.isMissing ? 'card-missing' : (item.isExtra ? 'card-extra' : ''))}`;
+                card.className = `p-6 rounded-[32px] shadow-lg border bg-white transition-all flex flex-col justify-between ${item.verified ? 'card-verified' : item.isMissing ? 'card-missing' : item.isExtra ? 'card-extra' : ''}`;
                 card.innerHTML = `
                     <div class="space-y-2 mb-6">
                         <div class="flex justify-between items-start">
@@ -348,37 +298,34 @@
                         <p class="text-[11px] text-slate-500 uppercase font-medium leading-tight">${item.desc}</p>
                         <p class="text-[10px] font-bold text-blue-600 uppercase">Batch: ${item.batch || '---'}</p>
                     </div>
-                    
                     <div class="flex gap-3 items-center">
-                        <button onclick="toggleFound(${index})" style="touch-action: manipulation;" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.verified ? 'bg-green-600 border-green-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Found</button>
-                        <button onclick="toggleMissing(${index})" style="touch-action: manipulation;" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
+                        <button onclick="toggleFound(${index})"   class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.verified   ? 'bg-green-600 border-green-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Found</button>
+                        <button onclick="toggleMissing(${index})" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white'   : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
                         <div class="flex-[1.5]">
-                            <input 
-                                type="number" 
-                                id="qty-input-${index}" 
-                                value="${item.countQty || ''}" 
-                                oninput="updateCount(${index}, this.value)" 
-                                placeholder="QTY" 
-                                inputmode="decimal"
-                                autocomplete="off"
-                                style="font-size: 22px; touch-action: manipulation; -webkit-user-select: text; user-select: text;"
-                                class="w-full h-16 bg-slate-100 rounded-2xl text-center font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner">
+                            <input type="number" id="qty-input-${index}"
+                                value="${item.countQty || ''}"
+                                oninput="updateCount(${index}, this.value)"
+                                placeholder="QTY" inputmode="decimal" autocomplete="off"
+                                class="w-full h-16 bg-slate-100 rounded-2xl text-center font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner"
+                                style="font-size:22px;">
                         </div>
-                        <button onclick="removeRow(${index})" style="touch-action: manipulation;" class="p-4 text-slate-300 hover:text-red-500">✕</button>
-                    </div>
-                `;
+                        <button onclick="removeRow(${index})" class="p-4 text-slate-300 hover:text-red-500">✕</button>
+                    </div>`;
                 container.appendChild(card);
+                // Attach iOS fix to dynamically created qty input
+                const qtyEl = document.getElementById(`qty-input-${index}`);
+                if (qtyEl) attachIosFocus(qtyEl);
             });
             document.getElementById('stat-expected').innerText = currentBinItems.filter(i => !i.isExtra).length;
         }
 
-        function toggleFound(idx) { currentBinItems[idx].verified = !currentBinItems[idx].verified; if (currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; saveSession(); renderAuditList(); }
-        function toggleMissing(idx) { currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } saveSession(); renderAuditList(); }
-        function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val) || 0; if(currentBinItems[idx].countQty > 0) { currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; } saveSession(); }
-        function removeRow(idx) { currentBinItems.splice(idx, 1); saveSession(); renderAuditList(); }
+        function toggleFound(idx)   { currentBinItems[idx].verified = !currentBinItems[idx].verified; if(currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; saveSession(); renderAuditList(); }
+        function toggleMissing(idx) { currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if(currentBinItems[idx].isMissing){currentBinItems[idx].verified=false;currentBinItems[idx].countQty=0;} saveSession(); renderAuditList(); }
+        function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val)||0; if(currentBinItems[idx].countQty>0){currentBinItems[idx].verified=true;currentBinItems[idx].isMissing=false;} saveSession(); }
+        function removeRow(idx)     { currentBinItems.splice(idx,1); saveSession(); renderAuditList(); }
 
         function finalizeBin() {
-            if(!currentActiveBin) return;
+            if (!currentActiveBin) return;
             let errors = false;
             currentBinItems.forEach((item, index) => {
                 const card = document.getElementById(`card-${index}`);
@@ -395,20 +342,21 @@
             saveSession(); renderAuditList();
         }
 
+        // ─── FILE UPLOAD ───────────────────────────────────────────────────────────
         function handleFileUpload(event) {
             const file = event.target.files[0];
             const reader = new FileReader();
             reader.onload = (e) => {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                const workbook = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
                 const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 sapMasterData = raw.map(row => ({
-                    sapBin: String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
-                    hu: String(row['Handling Unit'] || row['HU'] || "").trim(),
+                    sapBin:  String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
+                    hu:      String(row['Handling Unit'] || row['HU'] || "").trim(),
                     product: String(row['Product'] || ""),
-                    desc: row['Product Short Description'] || "",
-                    batch: String(row['Batch'] || ""),
-                    uom: row['Base Unit of Measure'] || row['UoM'] || "EA",
-                    sapQty: parseFloat(row['Quantity']) || 0
+                    desc:    row['Product Short Description'] || "",
+                    batch:   String(row['Batch'] || ""),
+                    uom:     row['Base Unit of Measure'] || row['UoM'] || "EA",
+                    sapQty:  parseFloat(row['Quantity']) || 0
                 }));
                 uniqueBins = [...new Set(sapMasterData.map(i => i.sapBin))].sort();
                 saveSession(); location.reload();
@@ -416,45 +364,59 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function toggleAddForm() { 
+        // ─── ADD ITEM MODAL ────────────────────────────────────────────────────────
+        function toggleAddForm() {
             const modal = document.getElementById('add-item-modal');
-            const wasHidden = modal.classList.contains('hidden');
+            const opening = modal.classList.contains('hidden');
             modal.classList.toggle('hidden');
-            // Only focus programmatically if opening AND this call was from a user tap.
-            // We use a tiny rAF delay so iOS registers it as user-gesture-adjacent.
-            if (wasHidden) {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        document.getElementById('add-hu').focus();
-                    });
-                });
+            if (opening) {
+                // Attach iOS fix to all modal inputs (safe to call multiple times — guarded)
+                modal.querySelectorAll('input').forEach(attachIosFocus);
+                // Focus first field. setTimeout keeps us just outside the button-click
+                // gesture but still close enough that iOS allows it on most versions.
+                setTimeout(() => document.getElementById('add-hu').focus(), 50);
             }
         }
 
         function submitExtra() {
-            const hu = document.getElementById('add-hu').value.trim();
-            const prod = document.getElementById('add-prod').value.trim();
+            const hu    = document.getElementById('add-hu').value.trim();
+            const prod  = document.getElementById('add-prod').value.trim();
             const batch = document.getElementById('add-batch').value.trim();
-            const uom = document.getElementById('add-uom').value.trim() || "EA";
-            const qty = parseFloat(document.getElementById('add-qty').value) || 0;
-            if(!currentActiveBin || !hu || !prod || qty <= 0) return alert("Fill all fields.");
+            const uom   = document.getElementById('add-uom').value.trim() || "EA";
+            const qty   = parseFloat(document.getElementById('add-qty').value) || 0;
+            if (!currentActiveBin || !hu || !prod || qty <= 0) return alert("Fill all fields.");
             const sapMatch = sapMasterData.find(i => i.hu === hu);
-            const desc = (hu === "0") ? "Missing/non-visible HU" : (sapMatch ? sapMatch.desc : "GHOST HU");
-            currentBinItems.push({ hu, product: prod, batch, uom, sapQty: sapMatch?sapMatch.sapQty:0, sapBin: sapMatch?sapMatch.sapBin:null, scannedBin: currentActiveBin, countQty: qty, verified: true, isMissing: false, isExtra: true, desc: desc });
-            ['add-hu', 'add-prod', 'add-batch', 'add-uom', 'add-qty'].forEach(id => document.getElementById(id).value = "");
+            const desc = hu === "0" ? "Missing/non-visible HU" : (sapMatch ? sapMatch.desc : "GHOST HU");
+            currentBinItems.push({ hu, product:prod, batch, uom, sapQty:sapMatch?sapMatch.sapQty:0, sapBin:sapMatch?sapMatch.sapBin:null, scannedBin:currentActiveBin, countQty:qty, verified:true, isMissing:false, isExtra:true, desc });
+            ['add-hu','add-prod','add-batch','add-uom','add-qty'].forEach(id => document.getElementById(id).value = "");
             toggleAddForm(); saveSession(); renderAuditList();
         }
 
-        function switchView(view) {
-            document.getElementById('view-audit').classList.toggle('hidden', view !== 'audit');
-            document.getElementById('view-report').classList.toggle('hidden', view !== 'report');
-            document.getElementById('nav-audit').classList.toggle('nav-active', view === 'audit');
-            document.getElementById('nav-audit').classList.toggle('text-slate-400', view !== 'audit');
-            document.getElementById('nav-report').classList.toggle('nav-active', view === 'report');
-            document.getElementById('nav-report').classList.toggle('text-slate-400', view !== 'report');
-            if(view === 'report') filterReport('move');
+        function autoLookupExtra(input) {
+            const hu = input.value.trim();
+            if (hu.length >= 8) {
+                const match = sapMasterData.find(i => i.hu === hu);
+                if (match) {
+                    document.getElementById('add-prod').value  = match.product;
+                    document.getElementById('add-batch').value = match.batch;
+                    document.getElementById('add-uom').value   = match.uom;
+                    document.getElementById('add-qty').focus();
+                }
+            }
         }
 
+        // ─── VIEW SWITCHING ────────────────────────────────────────────────────────
+        function switchView(view) {
+            document.getElementById('view-audit').classList.toggle('hidden',  view !== 'audit');
+            document.getElementById('view-report').classList.toggle('hidden', view !== 'report');
+            document.getElementById('nav-audit').classList.toggle('nav-active',     view === 'audit');
+            document.getElementById('nav-audit').classList.toggle('text-slate-400', view !== 'audit');
+            document.getElementById('nav-report').classList.toggle('nav-active',     view === 'report');
+            document.getElementById('nav-report').classList.toggle('text-slate-400', view !== 'report');
+            if (view === 'report') filterReport('move');
+        }
+
+        // ─── REPORT ────────────────────────────────────────────────────────────────
         function filterReport(type) {
             const container = document.getElementById('report-body');
             container.innerHTML = "";
@@ -463,11 +425,11 @@
             const combined = [...auditLog, ...currentBinItems];
             const foundHUs = new Set(combined.filter(i => i.verified).map(i => i.hu));
             let filtered = [];
-            if (type === 'move') filtered = combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified);
-            else if (type === 'adj') filtered = combined.filter(i => i.sapBin === i.scannedBin && i.countQty !== i.sapQty && !i.isMissing && i.verified);
-            else if (type === 'inactive') filtered = combined.filter(i => i.sapBin === null);
-            else if (type === 'missing') filtered = combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu));
-            if (filtered.length === 0) { container.innerHTML = `<div class="p-20 text-center text-slate-300 uppercase font-black text-sm">No discrepancies</div>`; return; }
+            if      (type==='move')     filtered = combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified);
+            else if (type==='adj')      filtered = combined.filter(i => i.sapBin === i.scannedBin && i.countQty !== i.sapQty && !i.isMissing && i.verified);
+            else if (type==='inactive') filtered = combined.filter(i => i.sapBin === null);
+            else if (type==='missing')  filtered = combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu));
+            if (!filtered.length) { container.innerHTML = `<div class="p-20 text-center text-slate-300 uppercase font-black text-sm">No discrepancies</div>`; return; }
             filtered.forEach(i => {
                 const div = document.createElement('div');
                 div.className = "p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center";
@@ -481,32 +443,13 @@
             if (!user) return alert("Enter Novus username.");
             const combined = [...auditLog, ...currentBinItems];
             const foundHUs = new Set(combined.filter(i => i.verified).map(i => i.hu));
-            const addSection = (title, data) => {
-                if (data.length === 0) return "";
-                let s = `\n--- ${title.toUpperCase()} ---\n`;
-                data.forEach(i => s += `HU:${i.hu} | Prod:${i.product} | SAP Bin:${i.sapBin||'N/A'} | Found In:${i.scannedBin} | SAP:${i.sapQty} | Cnt:${i.countQty} ${i.uom}\n`);
-                return s;
-            };
+            const addSection = (title, data) => { if(!data.length) return ""; let s=`\n--- ${title.toUpperCase()} ---\n`; data.forEach(i => s+=`HU:${i.hu} | Prod:${i.product} | SAP Bin:${i.sapBin||'N/A'} | Found In:${i.scannedBin} | SAP:${i.sapQty} | Cnt:${i.countQty} ${i.uom}\n`); return s; };
             let body = `NOVUS FOODS AUDIT - ${new Date().toLocaleString()}\n`;
-            body += addSection("Movements", combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified));
+            body += addSection("Movements",   combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified));
             body += addSection("Adjustments", combined.filter(i => i.sapBin === i.scannedBin && i.countQty !== i.sapQty && !i.isMissing && i.verified));
-            body += addSection("Inactive", combined.filter(i => i.sapBin === null));
-            body += addSection("Missing", combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu)));
+            body += addSection("Inactive",    combined.filter(i => i.sapBin === null));
+            body += addSection("Missing",     combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu)));
             window.location.href = `mailto:${user}@novusfoods.com?subject=iPad Audit Report&body=${encodeURIComponent(body)}`;
-        }
-
-        function autoLookupExtra(input) {
-            const hu = input.value.trim();
-            if (hu.length >= 8) {
-                const match = sapMasterData.find(i => i.hu === hu);
-                if (match) {
-                    document.getElementById('add-prod').value = match.product;
-                    document.getElementById('add-batch').value = match.batch;
-                    document.getElementById('add-uom').value = match.uom;
-                    // Move focus to qty — safe here because this fires from an oninput, which IS a user gesture
-                    document.getElementById('add-qty').focus();
-                }
-            }
         }
     </script>
 </body>

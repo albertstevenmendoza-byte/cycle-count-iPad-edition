@@ -14,18 +14,36 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
-        /* iPad Pro Specific Fixes */
         body { 
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); 
             background-color: #f1f5f9;
         }
 
-        /* FORCE KEYBOARD: Standalone iOS apps need explicit pointer events */
-        input {
-            pointer-events: auto !important;
+        /*
+         * iPad PWA KEYBOARD FIX
+         * 
+         * Three critical rules for standalone iOS web apps:
+         *
+         * 1. font-size >= 16px on ALL inputs — iOS auto-zooms (and sometimes
+         *    suppresses the keyboard) on inputs with font-size < 16px.
+         *
+         * 2. -webkit-user-select: text — without this, iOS treats the field as
+         *    non-editable in standalone mode and ignores the tap.
+         *
+         * 3. touch-action: manipulation — disables double-tap-to-zoom on the
+         *    element so the first tap registers as a focus event, not a zoom.
+         *
+         * DO NOT use pointer-events tricks; they fight the browser's tap handler.
+         * DO NOT call .focus() programmatically on page load or inside setTimeout
+         * without a direct user-gesture chain — iOS blocks it in standalone mode.
+         */
+        input, textarea {
+            font-size: 16px !important;        /* prevents iOS auto-zoom + keyboard suppression */
             -webkit-user-select: text !important;
             user-select: text !important;
             touch-action: manipulation !important;
+            -webkit-tap-highlight-color: rgba(59, 130, 246, 0.15);
+            cursor: text;
         }
 
         .card-verified { border-top: 6px solid #22c55e; background-color: #f0fdf4; }
@@ -37,6 +55,9 @@
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
         @media print { .no-print { display: none; } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* Ensure tappable buttons don't intercept input taps */
+        button { touch-action: manipulation; }
     </style>
 </head>
 <body class="font-sans text-slate-900 flex flex-col h-screen overflow-hidden">
@@ -52,7 +73,7 @@
 
         <div class="flex items-center gap-4">
             <input type="file" id="sap-upload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg">
+            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg" style="touch-action: manipulation;">
                 Load SAP File
             </label>
             <button onclick="clearAllData()" class="text-slate-500 hover:text-red-400 font-bold uppercase text-xs px-2">Reset</button>
@@ -74,9 +95,26 @@
         <div class="p-4 bg-white border-b shadow-sm shrink-0">
             <div class="max-w-4xl mx-auto flex gap-4">
                 <div class="flex-1">
-                    <input type="text" id="bin-input" placeholder="TAP HERE TO TYPE BIN ID..." autocomplete="off" 
-                           class="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-2xl font-black text-blue-700 uppercase focus:border-blue-500 outline-none transition-all"
-                           oninput="suggestBins(this.value)">
+                    <!--
+                        KEY iPad PWA ATTRIBUTES on this input:
+                        - inputmode="text"       → tells iOS which keyboard layout to show
+                        - autocomplete="off"     → prevents iOS suggestion bar from eating the tap
+                        - autocorrect="off"      → stops autocorrect UI from intercepting first tap
+                        - autocapitalize="characters" → uppercase for bin IDs
+                        - spellcheck="false"     → no red underlines fighting touch targets
+                    -->
+                    <input 
+                        type="text" 
+                        id="bin-input" 
+                        placeholder="TAP HERE — TYPE BIN ID" 
+                        inputmode="text"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="characters"
+                        spellcheck="false"
+                        class="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-blue-700 uppercase focus:border-blue-500 outline-none transition-all"
+                        style="font-size: 20px;"
+                        oninput="suggestBins(this.value)">
                 </div>
                 <div class="flex flex-col justify-center items-center bg-slate-900 text-white px-8 rounded-2xl">
                     <span class="text-[10px] uppercase font-bold text-slate-400">SAP SKU</span>
@@ -118,7 +156,17 @@
             <div class="flex-1 overflow-y-auto space-y-3 bg-white rounded-3xl p-4 border border-slate-200 shadow-inner" id="report-body"></div>
             <div class="bg-slate-900 p-6 rounded-3xl no-print flex flex-col md:flex-row items-center gap-4">
                 <div class="flex-1 flex items-center gap-2 w-full">
-                    <input type="text" id="email-user" placeholder="Novus Username" class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-blue-500">
+                    <input 
+                        type="text" 
+                        id="email-user" 
+                        placeholder="Novus Username" 
+                        inputmode="email"
+                        autocomplete="username"
+                        autocorrect="off"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-blue-500"
+                        style="font-size: 16px;">
                     <span class="text-slate-500 font-black">@novusfoods.com</span>
                 </div>
                 <button onclick="sendEmailReport()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black uppercase text-sm shadow-lg">Email Report</button>
@@ -132,15 +180,63 @@
             <h2 class="text-2xl font-black uppercase text-slate-800">Add Physical Item</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
-                    <input type="text" id="add-hu" placeholder="HU Number (0 if missing)" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none focus:border-blue-500 border-2 border-transparent" oninput="autoLookupExtra(this)">
+                    <input 
+                        type="text" 
+                        id="add-hu" 
+                        placeholder="HU Number (0 if missing)" 
+                        inputmode="numeric"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="none"
+                        spellcheck="false"
+                        class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
+                        style="font-size: 16px;"
+                        oninput="autoLookupExtra(this)">
                 </div>
                 <div class="col-span-2">
-                    <input type="text" id="add-prod" placeholder="Product ID" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none focus:border-blue-500 border-2 border-transparent">
+                    <input 
+                        type="text" 
+                        id="add-prod" 
+                        placeholder="Product ID" 
+                        inputmode="text"
+                        autocomplete="off"
+                        autocorrect="off"
+                        autocapitalize="characters"
+                        spellcheck="false"
+                        class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
+                        style="font-size: 16px;">
                 </div>
-                <input type="text" id="add-batch" placeholder="Batch" class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none">
-                <input type="text" id="add-uom" placeholder="UoM" class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none">
+                <input 
+                    type="text" 
+                    id="add-batch" 
+                    placeholder="Batch" 
+                    inputmode="text"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none"
+                    style="font-size: 16px;">
+                <input 
+                    type="text" 
+                    id="add-uom" 
+                    placeholder="UoM" 
+                    inputmode="text"
+                    autocomplete="off"
+                    autocorrect="off"
+                    autocapitalize="characters"
+                    spellcheck="false"
+                    class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none"
+                    style="font-size: 16px;">
                 <div class="col-span-2">
-                    <input type="number" id="add-qty" placeholder="Counted Quantity" inputmode="decimal" class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-4xl text-blue-700 border-2 border-blue-200 outline-none">
+                    <input 
+                        type="number" 
+                        id="add-qty" 
+                        placeholder="Counted Quantity" 
+                        inputmode="decimal"
+                        autocomplete="off"
+                        class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-blue-700 border-2 border-blue-200 outline-none"
+                        style="font-size: 32px;">
                 </div>
             </div>
             <div class="flex gap-4">
@@ -170,8 +266,6 @@
         window.onload = () => {
             if (sapMasterData.length > 0) {
                 uniqueBins = [...new Set(sapMasterData.map(i => i.sapBin))].sort();
-                document.getElementById('data-status').innerText = `ONLINE: ${sapMasterData.length} RECORDS LOADED`;
-                document.getElementById('data-status').classList.replace('text-slate-400', 'text-green-500');
             }
             if (currentActiveBin) {
                 document.getElementById('bin-input').value = currentActiveBin;
@@ -194,6 +288,7 @@
                     const btn = document.createElement('button');
                     btn.className = "px-10 py-4 bg-blue-100 text-blue-700 rounded-2xl font-black text-xl border-2 border-blue-200 shrink-0";
                     btn.innerText = level;
+                    btn.style.touchAction = "manipulation";
                     btn.onclick = () => selectBin(query + level);
                     container.appendChild(btn);
                 });
@@ -204,25 +299,28 @@
                 const btn = document.createElement('button');
                 btn.className = "px-6 py-4 bg-slate-800 text-white rounded-2xl font-bold text-sm shrink-0 uppercase border-2 border-slate-700";
                 btn.innerText = match;
+                btn.style.touchAction = "manipulation";
                 btn.onclick = () => selectBin(match);
                 container.appendChild(btn);
             });
         }
 
         function selectBin(binName) {
-            document.getElementById('bin-input').value = binName;
+            const input = document.getElementById('bin-input');
+            input.value = binName;
             document.getElementById('bin-suggestions').innerHTML = "";
             currentActiveBin = binName.toUpperCase();
             const expected = sapMasterData.filter(i => i.sapBin === currentActiveBin);
             currentBinItems = expected.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: currentActiveBin }));
             saveSession();
             renderAuditList();
+            // Dismiss keyboard after bin selection — safe because this IS inside a gesture chain
+            input.blur();
         }
 
         document.getElementById('bin-input').addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 selectBin(e.target.value);
-                e.target.blur(); // Native iPad trigger to close keyboard after selection
             }
         });
 
@@ -252,13 +350,21 @@
                     </div>
                     
                     <div class="flex gap-3 items-center">
-                        <button onclick="toggleFound(${index})" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.verified ? 'bg-green-600 border-green-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Found</button>
-                        <button onclick="toggleMissing(${index})" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
+                        <button onclick="toggleFound(${index})" style="touch-action: manipulation;" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.verified ? 'bg-green-600 border-green-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Found</button>
+                        <button onclick="toggleMissing(${index})" style="touch-action: manipulation;" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
                         <div class="flex-[1.5]">
-                            <input type="number" id="qty-input-${index}" value="${item.countQty || ''}" oninput="updateCount(${index}, this.value)" 
-                                   placeholder="QTY" inputmode="decimal" class="w-full h-16 bg-slate-100 rounded-2xl text-center text-2xl font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner">
+                            <input 
+                                type="number" 
+                                id="qty-input-${index}" 
+                                value="${item.countQty || ''}" 
+                                oninput="updateCount(${index}, this.value)" 
+                                placeholder="QTY" 
+                                inputmode="decimal"
+                                autocomplete="off"
+                                style="font-size: 22px; touch-action: manipulation; -webkit-user-select: text; user-select: text;"
+                                class="w-full h-16 bg-slate-100 rounded-2xl text-center font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner">
                         </div>
-                        <button onclick="removeRow(${index})" class="p-4 text-slate-300 hover:text-red-500">✕</button>
+                        <button onclick="removeRow(${index})" style="touch-action: manipulation;" class="p-4 text-slate-300 hover:text-red-500">✕</button>
                     </div>
                 `;
                 container.appendChild(card);
@@ -312,8 +418,17 @@
 
         function toggleAddForm() { 
             const modal = document.getElementById('add-item-modal');
+            const wasHidden = modal.classList.contains('hidden');
             modal.classList.toggle('hidden');
-            if(!modal.classList.contains('hidden')) document.getElementById('add-hu').focus();
+            // Only focus programmatically if opening AND this call was from a user tap.
+            // We use a tiny rAF delay so iOS registers it as user-gesture-adjacent.
+            if (wasHidden) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        document.getElementById('add-hu').focus();
+                    });
+                });
+            }
         }
 
         function submitExtra() {
@@ -388,6 +503,7 @@
                     document.getElementById('add-prod').value = match.product;
                     document.getElementById('add-batch').value = match.batch;
                     document.getElementById('add-uom').value = match.uom;
+                    // Move focus to qty — safe here because this fires from an oninput, which IS a user gesture
                     document.getElementById('add-qty').focus();
                 }
             }

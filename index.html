@@ -2,32 +2,30 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
     
-    <!-- iOS Home Screen App Fixes -->
+    <!-- iOS PWA Settings -->
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <!-- Changed to 'default' to prevent layout/input overlap issues in standalone mode -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="SAP Audit">
 
-    <title>SAP Auditor | Novus Foods iPad</title>
+    <title>SAP Auditor | Novus Foods</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
+        /* iPad Pro Specific Fixes */
         body { 
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); 
-            -webkit-tap-highlight-color: transparent;
-            /* Ensure the body doesn't prevent scrolling/input */
-            height: 100vh;
-            width: 100vw;
+            background-color: #f1f5f9;
         }
 
-        /* CRITICAL FIX: Force inputs to allow text selection and keyboard triggers in Standalone Mode */
-        input, textarea {
+        /* FORCE KEYBOARD: Standalone iOS apps need explicit pointer events */
+        input {
+            pointer-events: auto !important;
             -webkit-user-select: text !important;
             user-select: text !important;
-            cursor: text !important;
+            touch-action: manipulation !important;
         }
 
         .card-verified { border-top: 6px solid #22c55e; background-color: #f0fdf4; }
@@ -41,12 +39,12 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="bg-slate-100 font-sans text-slate-900 flex flex-col h-screen overflow-hidden">
+<body class="font-sans text-slate-900 flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
     <header class="bg-slate-900 text-white p-4 shadow-xl shrink-0 no-print flex justify-between items-center">
         <div class="flex items-center gap-4">
-            <div class="bg-blue-600 p-2 rounded-xl">
+            <div class="bg-blue-600 p-2 rounded-xl shadow-inner">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             </div>
             <h1 class="text-xl font-black uppercase tracking-tighter">SAP Auditor</h1>
@@ -54,7 +52,7 @@
 
         <div class="flex items-center gap-4">
             <input type="file" id="sap-upload" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer transition-all">
+            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg">
                 Load SAP File
             </label>
             <button onclick="clearAllData()" class="text-slate-500 hover:text-red-400 font-bold uppercase text-xs px-2">Reset</button>
@@ -75,15 +73,13 @@
         <!-- BIN INPUT AREA -->
         <div class="p-4 bg-white border-b shadow-sm shrink-0">
             <div class="max-w-4xl mx-auto flex gap-4">
-                <div class="flex-1 relative">
-                    <label class="absolute -top-2 left-4 bg-white px-2 text-[10px] font-black text-blue-600 uppercase">Bin Location</label>
-                    <input type="text" id="bin-input" placeholder="TAP TO TYPE BIN..." autocomplete="off" 
-                           autocorrect="off" autocapitalize="on" spellcheck="false"
+                <div class="flex-1">
+                    <input type="text" id="bin-input" placeholder="TAP HERE TO TYPE BIN ID..." autocomplete="off" 
                            class="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl text-2xl font-black text-blue-700 uppercase focus:border-blue-500 outline-none transition-all"
                            oninput="suggestBins(this.value)">
                 </div>
                 <div class="flex flex-col justify-center items-center bg-slate-900 text-white px-8 rounded-2xl">
-                    <span class="text-[10px] uppercase font-bold text-slate-400">SKU</span>
+                    <span class="text-[10px] uppercase font-bold text-slate-400">SAP SKU</span>
                     <span id="stat-expected" class="text-2xl font-black leading-none">0</span>
                 </div>
             </div>
@@ -91,8 +87,8 @@
         </div>
 
         <!-- CARDS GRID -->
-        <div id="audit-list" class="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-6 pb-48">
-            <div class="col-span-full text-center py-24 text-slate-300 italic text-lg font-medium">Tap the Bin field to begin...</div>
+        <div id="audit-list" class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 pb-48">
+            <div class="col-span-full text-center py-24 text-slate-300 italic text-lg font-medium">Please enter a Bin ID to begin...</div>
         </div>
 
         <!-- FOOTER -->
@@ -106,7 +102,7 @@
                     Finalize Bin
                 </button>
             </div>
-            <p id="validation-msg" class="text-center text-red-400 font-bold text-xs uppercase mt-3 hidden">⚠️ Check all items first</p>
+            <p id="validation-msg" class="text-center text-red-400 font-bold text-[10px] uppercase mt-3 hidden">⚠️ Check all items or mark as missing</p>
         </div>
     </main>
 
@@ -119,47 +115,42 @@
                 <button onclick="filterReport('inactive')" id="f-inactive" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Inactive</button>
                 <button onclick="filterReport('missing')" id="f-missing" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Missing</button>
             </div>
-            <div class="flex-1 overflow-y-auto space-y-3 bg-white rounded-3xl p-4 border border-slate-200" id="report-body"></div>
-            <div class="bg-slate-900 p-6 rounded-3xl no-print flex flex-col sm:flex-row items-center gap-4">
-                <input type="text" id="email-user" placeholder="Novus Username" class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none">
-                <button onclick="sendEmailReport()" class="w-full sm:w-auto bg-blue-600 text-white px-10 py-4 rounded-xl font-black uppercase text-sm">Email Report</button>
+            <div class="flex-1 overflow-y-auto space-y-3 bg-white rounded-3xl p-4 border border-slate-200 shadow-inner" id="report-body"></div>
+            <div class="bg-slate-900 p-6 rounded-3xl no-print flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-1 flex items-center gap-2 w-full">
+                    <input type="text" id="email-user" placeholder="Novus Username" class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-blue-500">
+                    <span class="text-slate-500 font-black">@novusfoods.com</span>
+                </div>
+                <button onclick="sendEmailReport()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black uppercase text-sm shadow-lg">Email Report</button>
             </div>
         </div>
     </main>
 
     <!-- MODAL -->
     <div id="add-item-modal" class="hidden fixed inset-0 bg-slate-900/90 z-[60] p-6 flex items-center justify-center">
-        <div class="bg-white w-full max-w-lg rounded-[40px] p-8 space-y-6">
+        <div class="bg-white w-full max-w-lg rounded-[40px] p-8 space-y-6 shadow-2xl">
             <h2 class="text-2xl font-black uppercase text-slate-800">Add Physical Item</h2>
             <div class="grid grid-cols-2 gap-4">
                 <div class="col-span-2">
-                    <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none" oninput="autoLookupExtra(this)">
+                    <input type="text" id="add-hu" placeholder="HU Number (0 if missing)" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none focus:border-blue-500 border-2 border-transparent" oninput="autoLookupExtra(this)">
                 </div>
                 <div class="col-span-2">
-                    <input type="text" id="add-prod" placeholder="Product ID" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none">
+                    <input type="text" id="add-prod" placeholder="Product ID" class="w-full p-5 bg-slate-100 rounded-2xl font-bold text-lg outline-none focus:border-blue-500 border-2 border-transparent">
                 </div>
-                <input type="text" id="add-batch" placeholder="Batch" class="p-5 bg-slate-100 rounded-2xl font-bold outline-none">
-                <input type="text" id="add-uom" placeholder="UoM" class="p-5 bg-slate-100 rounded-2xl font-bold text-center outline-none">
+                <input type="text" id="add-batch" placeholder="Batch" class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none">
+                <input type="text" id="add-uom" placeholder="UoM" class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none">
                 <div class="col-span-2">
-                    <input type="number" id="add-qty" placeholder="Quantity" inputmode="decimal" class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-4xl text-blue-700 outline-none border-2 border-blue-200">
+                    <input type="number" id="add-qty" placeholder="Counted Quantity" inputmode="decimal" class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-4xl text-blue-700 border-2 border-blue-200 outline-none">
                 </div>
             </div>
             <div class="flex gap-4">
                 <button onclick="toggleAddForm()" class="flex-1 py-5 text-slate-400 font-black uppercase text-xs">Cancel</button>
-                <button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-lg">Confirm Add</button>
+                <button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-lg shadow-lg">Confirm Add</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- STANDALONE KEYBOARD FIX ---
-        // This force-triggers focus on touchstart, which Standalone Mode trusts more than click
-        document.addEventListener('touchstart', function(e) {
-            if (e.target.tagName === 'INPUT') {
-                e.target.focus();
-            }
-        }, false);
-
         // --- DATA STATE ---
         let sapMasterData = JSON.parse(localStorage.getItem('sapMasterData')) || [];
         let auditLog = JSON.parse(localStorage.getItem('auditLog')) || []; 
@@ -189,7 +180,7 @@
             document.getElementById('stat-bins-done').innerText = binsAudited.size;
         };
 
-        function clearAllData() { if(confirm("Reset all progress?")){ localStorage.clear(); location.reload(); } }
+        function clearAllData() { if(confirm("Reset all session data?")){ localStorage.clear(); location.reload(); } }
 
         // --- CORE LOGIC ---
         function suggestBins(val) {
@@ -219,8 +210,7 @@
         }
 
         function selectBin(binName) {
-            const input = document.getElementById('bin-input');
-            input.value = binName;
+            document.getElementById('bin-input').value = binName;
             document.getElementById('bin-suggestions').innerHTML = "";
             currentActiveBin = binName.toUpperCase();
             const expected = sapMasterData.filter(i => i.sapBin === currentActiveBin);
@@ -230,14 +220,17 @@
         }
 
         document.getElementById('bin-input').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') selectBin(e.target.value);
+            if (e.key === 'Enter') {
+                selectBin(e.target.value);
+                e.target.blur(); // Native iPad trigger to close keyboard after selection
+            }
         });
 
         function renderAuditList() {
             const container = document.getElementById('audit-list');
             container.innerHTML = "";
             if (currentBinItems.length === 0 && currentActiveBin !== "") {
-                container.innerHTML = `<div class="col-span-full p-20 text-center text-slate-400 italic text-sm uppercase font-black bg-white rounded-3xl border-2 border-dashed">Bin is empty in SAP. Add physical items below.</div>`;
+                container.innerHTML = `<div class="col-span-full p-20 text-center text-slate-400 italic text-sm uppercase font-black bg-white rounded-3xl border-2 border-dashed">Bin empty in SAP. Add physical items below.</div>`;
             }
 
             currentBinItems.forEach((item, index) => {
@@ -247,7 +240,7 @@
                 card.innerHTML = `
                     <div class="space-y-2 mb-6">
                         <div class="flex justify-between items-start">
-                            <span class="bg-slate-900 text-white px-3 py-1 rounded-lg font-mono text-[10px] font-bold">HU: ${item.hu}</span>
+                            <span class="bg-slate-900 text-white px-3 py-1 rounded-lg font-mono text-[10px] font-bold tracking-tight">HU: ${item.hu}</span>
                             <div class="text-right">
                                 <p class="text-[10px] font-black text-slate-400 uppercase">SAP Qty</p>
                                 <p class="text-2xl font-black text-slate-800">${item.isExtra ? '--' : item.sapQty} <span class="text-xs font-bold text-slate-400">${item.uom}</span></p>
@@ -263,7 +256,7 @@
                         <button onclick="toggleMissing(${index})" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
                         <div class="flex-[1.5]">
                             <input type="number" id="qty-input-${index}" value="${item.countQty || ''}" oninput="updateCount(${index}, this.value)" 
-                                   placeholder="QTY" inputmode="decimal" class="w-full h-16 bg-slate-100 rounded-2xl text-center text-2xl font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500">
+                                   placeholder="QTY" inputmode="decimal" class="w-full h-16 bg-slate-100 rounded-2xl text-center text-2xl font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner">
                         </div>
                         <button onclick="removeRow(${index})" class="p-4 text-slate-300 hover:text-red-500">✕</button>
                     </div>
@@ -273,21 +266,9 @@
             document.getElementById('stat-expected').innerText = currentBinItems.filter(i => !i.isExtra).length;
         }
 
-        function toggleFound(idx) { 
-            currentBinItems[idx].verified = !currentBinItems[idx].verified;
-            if (currentBinItems[idx].verified) currentBinItems[idx].isMissing = false;
-            saveSession(); renderAuditList(); 
-        }
-        function toggleMissing(idx) { 
-            currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing;
-            if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; }
-            saveSession(); renderAuditList(); 
-        }
-        function updateCount(idx, val) { 
-            currentBinItems[idx].countQty = parseFloat(val) || 0; 
-            if(currentBinItems[idx].countQty > 0) { currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; }
-            saveSession();
-        }
+        function toggleFound(idx) { currentBinItems[idx].verified = !currentBinItems[idx].verified; if (currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; saveSession(); renderAuditList(); }
+        function toggleMissing(idx) { currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } saveSession(); renderAuditList(); }
+        function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val) || 0; if(currentBinItems[idx].countQty > 0) { currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; } saveSession(); }
         function removeRow(idx) { currentBinItems.splice(idx, 1); saveSession(); renderAuditList(); }
 
         function finalizeBin() {
@@ -306,7 +287,6 @@
             document.getElementById('bin-input').value = "";
             document.getElementById('stat-bins-done').innerText = binsAudited.size;
             saveSession(); renderAuditList();
-            document.getElementById('bin-input').focus();
         }
 
         function handleFileUpload(event) {
@@ -389,7 +369,7 @@
             const addSection = (title, data) => {
                 if (data.length === 0) return "";
                 let s = `\n--- ${title.toUpperCase()} ---\n`;
-                data.forEach(i => s += `HU:${i.hu} | Prod:${i.product} | SAP Bin:${i.sapBin||'N/A'} | Found In:${i.scannedBin} | SAP:${i.sapQty} | Cnt:${i.countQty}\n`);
+                data.forEach(i => s += `HU:${i.hu} | Prod:${i.product} | SAP Bin:${i.sapBin||'N/A'} | Found In:${i.scannedBin} | SAP:${i.sapQty} | Cnt:${i.countQty} ${i.uom}\n`);
                 return s;
             };
             let body = `NOVUS FOODS AUDIT - ${new Date().toLocaleString()}\n`;

@@ -2,330 +2,343 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
-    
-    <!-- iOS PWA Settings -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="apple-mobile-web-app-title" content="SAP Audit">
-
-    <title>SAP Auditor | Novus Foods</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAP PARTY | Audit World</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <style>
-        body { 
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); 
-            background-color: #f1f5f9;
+        :root {
+            --mario-red: #e52521;
+            --mario-blue: #049cd8;
+            --mario-yellow: #fbd000;
+            --mario-green: #43b047;
         }
-
-        /*
-         * iOS PWA KEYBOARD FIX
-         * The standalone PWA context (apple-mobile-web-app-capable) breaks the
-         * normal tap → focus → keyboard flow. The ONLY reliable fix is to call
-         * .focus() directly inside a touchstart or touchend handler, which keeps
-         * it inside the user gesture stack. All other CSS tricks are secondary.
-         *
-         * font-size >= 16px prevents iOS auto-zoom which also suppresses keyboard.
-         */
-        input, textarea {
-            font-size: 16px !important;
-            -webkit-user-select: text !important;
-            user-select: text !important;
-            touch-action: manipulation !important;
-            cursor: text;
-            -webkit-text-fill-color: inherit;
-        }
-
-        .card-verified { border-top: 6px solid #22c55e; background-color: #f0fdf4; }
-        .card-missing  { border-top: 6px solid #ef4444; background-color: #fef2f2; opacity: 0.8; }
-        .card-extra    { border-top: 6px solid #f97316; background-color: #fff7ed; }
-        .card-error    { border: 2px solid #ef4444 !important; animation: shake 0.2s ease-in-out 0s 2; }
-        .nav-active    { background-color: #3b82f6; color: white; box-shadow: 0 4px 10px rgba(59,130,246,0.3); }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .retro-font { font-family: 'Press Start 2P', cursive; }
         
-        @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(5px)} 75%{transform:translateX(-5px)} }
-        @media print { .no-print { display: none; } }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        button { touch-action: manipulation; }
+        input[type="number"], input[type="text"] { font-size: 16px !important; }
+        
+        /* Game Styles */
+        .game-card { border: 4px solid #000; box-shadow: 8px 8px 0px rgba(0,0,0,0.2); }
+        .card-verified { background-color: #dcfce7; border-color: var(--mario-green); }
+        .card-missing { background-color: #fee2e2; border-color: var(--mario-red); opacity: 0.9; }
+        .card-extra { background-color: #f3e8ff; border-color: #a855f7; }
+        .card-error { animation: shake 0.2s ease-in-out 0s 2; border-color: var(--mario-red) !important; }
+        
+        .nav-active { background-color: var(--mario-yellow); color: black; border: 3px solid black; transform: translateY(-2px); }
+        
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+        @keyframes star-jump { 0% { transform: scale(0.5) rotate(0deg); opacity: 0; } 50% { transform: scale(1.2) rotate(180deg); } 100% { transform: scale(1) rotate(360deg); opacity: 1; } }
+        
+        .star-anim { animation: star-jump 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .board-space { transition: all 0.2s; position: relative; }
+        .board-space:active { transform: scale(0.9); }
+        .character-token { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); z-index: 10; pointer-events: none; }
+        
+        .bg-pattern {
+            background-color: #5c94fc;
+            background-image: url("https://www.transparenttextures.com/patterns/8-bit-hogan.png");
+        }
     </style>
 </head>
-<body class="font-sans text-slate-900 flex flex-col h-screen overflow-hidden">
+<body class="bg-pattern text-slate-900 flex flex-col h-screen overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-slate-900 text-white p-4 shadow-xl shrink-0 no-print flex justify-between items-center">
-        <div class="flex items-center gap-4">
-            <div class="bg-blue-600 p-2 rounded-xl shadow-inner">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
+    <header class="bg-black text-white p-3 shadow-lg shrink-0 no-print border-b-4 border-yellow-400">
+        <div class="flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="bg-red-600 p-1.5 rounded-lg border-2 border-white">
+                    <span class="text-white font-black text-xl">M</span>
+                </div>
+                <div>
+                    <h1 class="retro-font text-[10px] tracking-tighter">SAP PARTY</h1>
+                    <p class="text-[8px] text-yellow-400 font-bold uppercase">Audit World</p>
+                </div>
             </div>
-            <h1 class="text-xl font-black uppercase tracking-tighter">SAP Auditor</h1>
-        </div>
-        <div class="flex items-center gap-4">
-            <input type="file" id="sap-upload" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileUpload(event)">
-            <label for="sap-upload" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase cursor-pointer shadow-lg">
-                Load SAP File
-            </label>
-            <button onclick="clearAllData()" class="text-slate-500 hover:text-red-400 font-bold uppercase text-xs px-2">Reset</button>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center bg-slate-800 px-2 py-1 rounded-full border border-slate-600">
+                    <span class="text-yellow-400 mr-1">⭐</span>
+                    <span id="star-count" class="retro-font text-[10px]">0</span>
+                </div>
+                <button onclick="clearAllData()" class="bg-red-600 border-2 border-white px-2 py-1 text-[8px] retro-font">RESET</button>
+            </div>
         </div>
     </header>
 
-    <!-- Navigation -->
-    <nav class="bg-white border-b flex p-2 no-print shrink-0 justify-center">
-        <div class="flex bg-slate-100 p-1.5 rounded-2xl w-full max-w-2xl shadow-inner">
-            <button id="nav-audit"  onclick="switchView('audit')"  class="flex-1 py-3 rounded-xl font-black text-sm transition-all nav-active uppercase tracking-widest">Audit Mode</button>
-            <button id="nav-report" onclick="switchView('report')" class="flex-1 py-3 rounded-xl font-black text-sm transition-all text-slate-400 uppercase tracking-widest">Live Report</button>
-        </div>
+    <!-- Nav Tabs -->
+    <nav class="bg-blue-800 border-b-4 border-black flex p-1 no-print shrink-0 gap-1">
+        <button id="nav-audit" onclick="switchView('audit')" class="flex-1 py-3 text-[10px] retro-font uppercase transition-all nav-active rounded-t-lg">Audit</button>
+        <button id="nav-report" onclick="switchView('report')" class="flex-1 py-3 text-[10px] retro-font uppercase transition-all text-white bg-blue-900 rounded-t-lg">Report</button>
     </nav>
 
     <!-- AUDIT VIEW -->
-    <main id="view-audit" class="flex-1 flex flex-col overflow-hidden">
-
-        <!-- BIN INPUT -->
-        <div class="p-4 bg-white border-b shadow-sm shrink-0">
-            <div class="max-w-4xl mx-auto flex gap-4">
-                <div class="flex-1">
-                    <input type="text" id="bin-input"
-                        placeholder="TAP HERE — TYPE BIN ID"
-                        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-                        inputmode="text"
-                        class="w-full p-5 bg-slate-50 border-2 border-slate-200 rounded-2xl font-black text-blue-700 uppercase focus:border-blue-500 outline-none transition-all"
-                        style="font-size:20px;"
-                        oninput="suggestBins(this.value)">
-                </div>
-                <div class="flex flex-col justify-center items-center bg-slate-900 text-white px-8 rounded-2xl">
-                    <span class="text-[10px] uppercase font-bold text-slate-400">SAP SKU</span>
-                    <span id="stat-expected" class="text-2xl font-black leading-none">0</span>
+    <main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
+        
+        <!-- STARTUP OVERLAY / CHARACTER SELECT -->
+        <div id="setup-screen" class="absolute inset-0 bg-blue-500 z-40 flex flex-col p-6 overflow-y-auto">
+            
+            <!-- Character Selection -->
+            <div id="char-selection" class="mb-8">
+                <h2 class="retro-font text-white text-center text-sm mb-6 leading-loose">SELECT YOUR AUDITOR</h2>
+                <div class="grid grid-cols-4 gap-2">
+                    <button onclick="selectChar('🔴')" class="char-btn bg-white p-4 rounded-xl border-4 border-black text-2xl">🔴</button>
+                    <button onclick="selectChar('🟢')" class="char-btn bg-white p-4 rounded-xl border-4 border-black text-2xl">🟢</button>
+                    <button onclick="selectChar('🌸')" class="char-btn bg-white p-4 rounded-xl border-4 border-black text-2xl">🌸</button>
+                    <button onclick="selectChar('🍄')" class="char-btn bg-white p-4 rounded-xl border-4 border-black text-2xl">🍄</button>
                 </div>
             </div>
-            <div id="bin-suggestions" class="max-w-4xl mx-auto flex gap-3 mt-4 overflow-x-auto no-scrollbar pb-1"></div>
-        </div>
 
-        <!-- CARDS GRID -->
-        <div id="audit-list" class="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-6 pb-48">
-            <div class="col-span-full text-center py-24 text-slate-300 italic text-lg font-medium">Please enter a Bin ID to begin...</div>
-        </div>
-
-        <!-- FOOTER -->
-        <div class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md p-6 shadow-2xl no-print z-50">
-            <div class="max-w-5xl mx-auto flex items-center gap-6">
-                <button onclick="toggleAddForm()" class="bg-orange-500 text-white h-16 px-8 rounded-2xl font-black uppercase text-sm flex items-center gap-3 shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14m-7-7v14"/></svg>
-                    Add Item
-                </button>
-                <button onclick="finalizeBin()" class="flex-1 bg-green-600 text-white h-16 rounded-2xl font-black uppercase text-lg shadow-xl">
-                    Finalize Bin
-                </button>
+            <div id="upload-prompt" class="flex-1 flex flex-col items-center justify-center text-center">
+                <div class="w-20 h-20 bg-yellow-400 border-4 border-black rounded-2xl flex items-center justify-center mb-6 shadow-[8px_8px_0px_rgba(0,0,0,0.3)]">
+                    <span class="retro-font text-4xl text-white">?</span>
+                </div>
+                <h2 class="retro-font text-sm text-white mb-4">LOAD LEVEL DATA</h2>
+                <input type="file" id="sap-upload-main" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                <label for="sap-upload-main" class="w-full max-w-xs bg-green-500 text-white py-5 rounded-2xl retro-font text-[10px] border-4 border-black shadow-xl active:scale-95 cursor-pointer block">CHOOSE FILE</label>
             </div>
-            <p id="validation-msg" class="text-center text-red-400 font-bold text-[10px] uppercase mt-3 hidden">⚠️ Check all items or mark as missing</p>
+
+            <!-- THE BOARD MAP -->
+            <div id="row-selection" class="hidden">
+                <h2 class="retro-font text-white text-xs mb-6 text-center">SELECT A SPACE TO START</h2>
+                <div class="grid grid-cols-4 gap-4" id="row-grid"></div>
+            </div>
+        </div>
+
+        <!-- GAME HUD -->
+        <div class="p-3 bg-white border-b-4 border-black shrink-0">
+            <div class="flex gap-2">
+                <button onclick="stepBin(-1)" class="bg-blue-500 text-white w-12 rounded-xl border-2 border-black font-black">◀</button>
+                <div class="flex-1 relative">
+                    <span id="player-token-hud" class="absolute -top-3 -left-2 text-xl">🔴</span>
+                    <input type="text" id="bin-input" placeholder="BIN ID..." autocomplete="off"
+                           class="w-full p-4 bg-slate-100 border-4 border-slate-800 rounded-xl text-xl font-black text-blue-700 uppercase outline-none"
+                           oninput="suggestBins(this.value)">
+                </div>
+                <button onclick="stepBin(1)" class="bg-blue-500 text-white w-12 rounded-xl border-2 border-black font-black">▶</button>
+            </div>
+            <div id="bin-suggestions" class="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1"></div>
+        </div>
+
+        <!-- LIST AREA -->
+        <div id="audit-list" class="flex-1 overflow-y-auto p-3 space-y-4 pb-56"></div>
+
+        <!-- STICKY FOOTER -->
+        <div class="fixed bottom-0 left-0 right-0 bg-black p-3 shadow-2xl no-print z-50 border-t-4 border-yellow-400">
+            <div class="flex gap-2 mb-3">
+                <button onclick="toggleAddForm()" class="flex-1 bg-orange-500 text-white py-3 rounded-xl retro-font text-[8px] border-2 border-white">+ FOUND ITEM</button>
+                <button onclick="finalizeBin()" class="flex-1 bg-slate-700 text-slate-300 py-3 rounded-xl retro-font text-[8px] border-2 border-slate-500">MARK EMPTY</button>
+            </div>
+            <button onclick="finalizeBin()" class="w-full bg-green-500 text-white py-4 rounded-xl retro-font text-xs border-4 border-white shadow-lg active:scale-95 transition-all">FINALIZE BIN</button>
         </div>
     </main>
+
+    <!-- STAR GET MODAL -->
+    <div id="row-end-modal" class="hidden fixed inset-0 bg-blue-600/95 z-[70] p-6 flex items-center justify-center">
+        <div class="text-center">
+            <div id="star-visual" class="text-8xl mb-6 star-anim">⭐</div>
+            <h2 class="retro-font text-white text-xl mb-2">STAR GET!</h2>
+            <p id="row-end-text" class="text-yellow-300 retro-font text-[10px] mb-8 leading-loose"></p>
+            <div class="space-y-4">
+                <button id="btn-next-row" class="w-full bg-yellow-400 text-black py-4 rounded-2xl retro-font text-[10px] border-4 border-black shadow-lg">NEXT ROW</button>
+                <button onclick="openRowSelector()" class="w-full bg-white text-blue-600 py-4 rounded-2xl retro-font text-[10px] border-4 border-black">MAP VIEW</button>
+            </div>
+        </div>
+    </div>
 
     <!-- REPORT VIEW -->
-    <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden p-6 space-y-4">
-        <div class="max-w-6xl mx-auto w-full flex-1 flex flex-col space-y-4 overflow-hidden">
-            <div class="flex gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
-                <button onclick="filterReport('move')"     id="f-move"     class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Movements</button>
-                <button onclick="filterReport('adj')"      id="f-adj"      class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Adjustments</button>
-                <button onclick="filterReport('inactive')" id="f-inactive" class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Inactive</button>
-                <button onclick="filterReport('missing')"  id="f-missing"  class="px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200">Missing</button>
-            </div>
-            <div class="flex-1 overflow-y-auto space-y-3 bg-white rounded-3xl p-4 border border-slate-200 shadow-inner" id="report-body"></div>
-            <div class="bg-slate-900 p-6 rounded-3xl no-print flex flex-col md:flex-row items-center gap-4">
-                <div class="flex-1 flex items-center gap-2 w-full">
-                    <input type="text" id="email-user" placeholder="Novus Username"
-                        inputmode="email" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-                        class="flex-1 p-4 rounded-xl bg-slate-800 border-2 border-slate-700 text-white font-bold outline-none focus:border-blue-500"
-                        style="font-size:16px;">
-                    <span class="text-slate-500 font-black">@novusfoods.com</span>
-                </div>
-                <button onclick="sendEmailReport()" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-black uppercase text-sm shadow-lg">Email Report</button>
-            </div>
+    <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden p-3 space-y-3">
+        <div class="flex gap-1 overflow-x-auto pb-2 no-print shrink-0 no-scrollbar">
+            <button onclick="filterReport('move')" id="f-move" class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] retro-font bg-white border-2 border-black">MOVES</button>
+            <button onclick="filterReport('adj')" id="f-adj" class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] retro-font bg-white border-2 border-black">ADJS</button>
+            <button onclick="filterReport('inactive')" id="f-inactive" class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] retro-font bg-white border-2 border-black">GHOSTS</button>
+            <button onclick="filterReport('missing')" id="f-missing" class="whitespace-nowrap px-4 py-2 rounded-full text-[10px] retro-font bg-white border-2 border-black">MISSING</button>
+        </div>
+        <div class="flex-1 overflow-y-auto space-y-3" id="report-body"></div>
+        <div class="bg-white p-4 rounded-2xl border-4 border-black no-print space-y-3">
+            <input type="text" id="email-user" placeholder="Novus Username" class="w-full p-3 border-2 border-slate-300 rounded-xl font-bold">
+            <button onclick="sendEmailReport()" class="w-full bg-blue-600 text-white py-4 rounded-xl retro-font text-[10px] border-4 border-black">SEND RESULTS</button>
         </div>
     </main>
 
-    <!-- MODAL -->
-    <div id="add-item-modal" class="hidden fixed inset-0 bg-slate-900/90 z-[60] p-6 flex items-center justify-center">
-        <div class="bg-white w-full max-w-lg rounded-[40px] p-8 space-y-6 shadow-2xl">
-            <h2 class="text-2xl font-black uppercase text-slate-800">Add Physical Item</h2>
-            <div class="grid grid-cols-2 gap-4">
-                <div class="col-span-2">
-                    <input type="text" id="add-hu" placeholder="HU Number (0 if missing)"
-                        inputmode="numeric" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-                        class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
-                        style="font-size:16px;" oninput="autoLookupExtra(this)">
-                </div>
-                <div class="col-span-2">
-                    <input type="text" id="add-prod" placeholder="Product ID"
-                        inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-                        class="w-full p-5 bg-slate-100 rounded-2xl font-bold outline-none focus:border-blue-500 border-2 border-transparent"
-                        style="font-size:16px;">
-                </div>
-                <input type="text" id="add-batch" placeholder="Batch"
-                    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
-                    class="p-5 bg-slate-100 rounded-2xl font-bold border-2 border-transparent outline-none" style="font-size:16px;">
-                <input type="text" id="add-uom" placeholder="UoM"
-                    inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false"
-                    class="p-5 bg-slate-100 rounded-2xl font-bold text-center border-2 border-transparent outline-none" style="font-size:16px;">
-                <div class="col-span-2">
-                    <input type="number" id="add-qty" placeholder="Counted Quantity"
-                        inputmode="decimal" autocomplete="off"
-                        class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-blue-700 border-2 border-blue-200 outline-none"
-                        style="font-size:32px;">
-                </div>
+    <!-- MODAL: ADD EXTRA ITEM -->
+    <div id="add-item-modal" class="hidden fixed inset-0 bg-black/80 z-[60] p-4 flex items-center justify-center">
+        <div class="bg-white w-full max-w-sm rounded-3xl border-4 border-black p-6 space-y-4">
+            <h2 class="retro-font text-[10px]">ADD POWER-UP (ITEM)</h2>
+            <div class="space-y-3">
+                <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-4 bg-slate-100 rounded-xl font-bold border-2 border-black" oninput="autoLookupExtra(this)">
+                <input type="text" id="add-prod" placeholder="Product ID" class="w-full p-4 bg-slate-100 rounded-xl font-bold border-2 border-black">
+                <input type="number" id="add-qty" placeholder="Count" class="w-full p-5 bg-yellow-50 rounded-xl font-black text-center text-2xl border-2 border-black outline-none">
             </div>
-            <div class="flex gap-4">
-                <button onclick="toggleAddForm()" class="flex-1 py-5 text-slate-400 font-black uppercase text-xs">Cancel</button>
-                <button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-5 rounded-2xl font-black uppercase text-lg shadow-lg">Confirm Add</button>
+            <div class="flex gap-3">
+                <button onclick="toggleAddForm()" class="flex-1 retro-font text-[8px]">CANCEL</button>
+                <button onclick="submitExtra()" class="flex-[2] bg-green-500 text-white py-4 rounded-xl retro-font text-[8px] border-2 border-black">ADD TO BIN</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ─── DATA STATE ────────────────────────────────────────────────────────────
-        let sapMasterData    = JSON.parse(localStorage.getItem('sapMasterData'))    || [];
-        let auditLog         = JSON.parse(localStorage.getItem('auditLog'))         || [];
-        let currentBinItems  = JSON.parse(localStorage.getItem('currentBinItems'))  || [];
-        let currentActiveBin = localStorage.getItem('currentActiveBin')             || "";
-        let binsAudited      = new Set(JSON.parse(localStorage.getItem('binsAudited')) || []);
-        let uniqueBins       = [];
+        // --- GAME STATE ---
+        let sapMasterData = JSON.parse(localStorage.getItem('sapMasterData')) || [];
+        let auditLog = JSON.parse(localStorage.getItem('auditLog')) || []; 
+        let currentBinItems = JSON.parse(localStorage.getItem('currentBinItems')) || [];
+        let currentActiveBin = localStorage.getItem('currentActiveBin') || "";
+        let binsAudited = new Set(JSON.parse(localStorage.getItem('binsAudited')) || []);
+        let selectedCharacter = localStorage.getItem('selectedCharacter') || "🔴";
+        let stars = parseInt(localStorage.getItem('stars')) || 0;
 
         function saveSession() {
-            localStorage.setItem('sapMasterData',    JSON.stringify(sapMasterData));
-            localStorage.setItem('auditLog',         JSON.stringify(auditLog));
-            localStorage.setItem('currentBinItems',  JSON.stringify(currentBinItems));
+            localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
+            localStorage.setItem('auditLog', JSON.stringify(auditLog));
+            localStorage.setItem('currentBinItems', JSON.stringify(currentBinItems));
             localStorage.setItem('currentActiveBin', currentActiveBin);
-            localStorage.setItem('binsAudited',      JSON.stringify([...binsAudited]));
+            localStorage.setItem('binsAudited', JSON.stringify(Array.from(binsAudited)));
+            localStorage.setItem('selectedCharacter', selectedCharacter);
+            localStorage.setItem('stars', stars);
+            updateHUD();
         }
 
-        // ─── iOS PWA KEYBOARD FIX ─────────────────────────────────────────────────
-        // In standalone PWA mode, iOS blocks the software keyboard unless .focus()
-        // is called synchronously inside a touchstart or touchend handler.
-        // onclick and onfocus both fire too late in the iOS event chain.
-        // This function attaches the fix once per element (guards against duplicates).
-        function attachIosFocus(el) {
-            if (el._iosFocusAttached) return;
-            el._iosFocusAttached = true;
-            el.addEventListener('touchstart', function(e) {
-                // Synchronous focus inside touchstart = inside gesture stack = keyboard opens
-                this.focus();
-            }, { passive: true });
+        function updateHUD() {
+            document.getElementById('star-count').innerText = stars;
+            document.getElementById('player-token-hud').innerText = selectedCharacter;
         }
 
-        // Attach to all inputs present at page load
-        document.addEventListener('DOMContentLoaded', () => {
-            document.querySelectorAll('input, textarea').forEach(attachIosFocus);
-        });
+        function selectChar(emoji) {
+            selectedCharacter = emoji;
+            document.querySelectorAll('.char-btn').forEach(b => b.classList.remove('border-yellow-400', 'bg-yellow-100'));
+            event.currentTarget.classList.add('border-yellow-400', 'bg-yellow-100');
+            saveSession();
+            initSetupGrid();
+        }
 
-        // ─── INIT ──────────────────────────────────────────────────────────────────
         window.onload = () => {
-            if (sapMasterData.length > 0) {
-                uniqueBins = [...new Set(sapMasterData.map(i => i.sapBin))].sort();
-            }
+            updateHUD();
+            initSetupGrid();
+            if (sapMasterData.length > 0) unlockAudit();
             if (currentActiveBin) {
+                document.getElementById('setup-screen').classList.add('hidden');
                 document.getElementById('bin-input').value = currentActiveBin;
                 renderAuditList();
+                suggestBins("");
             }
-            document.getElementById('stat-bins-done').innerText = binsAudited.size;
         };
 
-        function clearAllData() {
-            if (confirm("Reset all session data?")) { localStorage.clear(); location.reload(); }
+        function initSetupGrid() {
+            const grid = document.getElementById('row-grid');
+            grid.innerHTML = "";
+            "ABCDEFGHIJKLMNOP".split("").forEach(row => {
+                const isCurrent = currentActiveBin && currentActiveBin.charAt(1) === row;
+                const btn = document.createElement('button');
+                btn.className = `board-space bg-white border-4 border-black p-4 rounded-2xl retro-font text-lg shadow-[4px_4px_0px_rgba(0,0,0,0.2)] active:bg-yellow-400`;
+                btn.innerHTML = `
+                    ${isCurrent ? `<span class="character-token">${selectedCharacter}</span>` : ''}
+                    ${row}
+                `;
+                btn.onclick = () => startAuditAtRow(row);
+                grid.appendChild(btn);
+            });
         }
 
-        // ─── BIN LOGIC ─────────────────────────────────────────────────────────────
+        function unlockAudit() {
+            document.getElementById('upload-prompt').classList.add('hidden');
+            document.getElementById('row-selection').classList.remove('hidden');
+        }
+
+        function startAuditAtRow(rowLetter) {
+            document.getElementById('setup-screen').classList.add('hidden');
+            selectBin(`W${rowLetter}00A`);
+        }
+
+        function openRowSelector() {
+            document.getElementById('row-end-modal').classList.add('hidden');
+            document.getElementById('setup-screen').classList.remove('hidden');
+            document.getElementById('row-selection').classList.remove('hidden');
+            initSetupGrid();
+        }
+
+        function clearAllData() { 
+            if (confirm("GAME OVER? This deletes all progress!")) { 
+                localStorage.clear(); location.reload(); 
+            } 
+        }
+
+        // --- NAVIGATION LOGIC ---
+        function getNextPhysicalBin(current) {
+            if (!current) return null;
+            let row = current.charAt(1);
+            if (current.endsWith("100")) {
+                let nextRow = String.fromCharCode(row.charCodeAt(0) + 1);
+                return nextRow > 'P' ? null : `W${nextRow}00A`;
+            }
+            let bay = parseInt(current.substring(2, 4));
+            let level = current.charAt(4);
+            if (level === 'A') level = 'B';
+            else if (level === 'B') level = 'C';
+            else {
+                if (bay >= 39) return `W${row}100`;
+                else { level = 'A'; bay++; }
+            }
+            return `W${row}${bay.toString().padStart(2, '0')}${level}`;
+        }
+
+        function getPrevPhysicalBin(current) {
+            if (!current) return null;
+            let row = current.charAt(1);
+            if (current.endsWith("100")) return `W${row}39C`;
+            let bay = parseInt(current.substring(2, 4));
+            let level = current.charAt(4);
+            if (level === 'C') level = 'B';
+            else if (level === 'B') level = 'A';
+            else {
+                if (bay === 0) return null;
+                level = 'C'; bay--;
+            }
+            return `W${row}${bay.toString().padStart(2, '0')}${level}`;
+        }
+
+        function stepBin(dir) {
+            const next = dir > 0 ? getNextPhysicalBin(currentActiveBin) : getPrevPhysicalBin(currentActiveBin);
+            if (next) selectBin(next);
+        }
+
         function suggestBins(val) {
             const container = document.getElementById('bin-suggestions');
             container.innerHTML = "";
-            const query = val.toUpperCase();
-            if (!query) return;
-
-            if (query.length >= 2) {
-                ['A','B','C'].forEach(level => {
+            if (currentActiveBin) {
+                const bayPrefix = currentActiveBin.substring(0, 4);
+                ['A', 'B', 'C'].forEach(lvl => {
+                    const bin = bayPrefix + lvl;
                     const btn = document.createElement('button');
-                    btn.className = "px-10 py-4 bg-blue-100 text-blue-700 rounded-2xl font-black text-xl border-2 border-blue-200 shrink-0";
-                    btn.innerText = level;
-                    btn.onclick = () => selectBin(query + level);
+                    btn.className = `px-6 py-2 rounded-lg retro-font text-[8px] border-2 border-black shrink-0 ${currentActiveBin.endsWith(lvl) && !currentActiveBin.endsWith("100") ? 'bg-yellow-400 text-black' : 'bg-white text-blue-600'}`;
+                    btn.innerText = lvl;
+                    btn.onclick = () => selectBin(bin);
                     container.appendChild(btn);
                 });
+                const floorBtn = document.createElement('button');
+                floorBtn.className = `px-6 py-2 rounded-lg retro-font text-[8px] border-2 border-black shrink-0 ${currentActiveBin.endsWith("100") ? 'bg-orange-500 text-white' : 'bg-white text-orange-600'}`;
+                floorBtn.innerText = "100";
+                floorBtn.onclick = () => selectBin(`W${currentActiveBin.charAt(1)}100`);
+                container.appendChild(floorBtn);
             }
-            uniqueBins.filter(b => b.startsWith(query)).slice(0,8).forEach(match => {
-                const btn = document.createElement('button');
-                btn.className = "px-6 py-4 bg-slate-800 text-white rounded-2xl font-bold text-sm shrink-0 uppercase border-2 border-slate-700";
-                btn.innerText = match;
-                btn.onclick = () => selectBin(match);
-                container.appendChild(btn);
-            });
         }
 
         function selectBin(binName) {
             document.getElementById('bin-input').value = binName;
-            document.getElementById('bin-suggestions').innerHTML = "";
-            currentActiveBin = binName.toUpperCase();
+            loadBinData(binName);
+            suggestBins("");
+        }
+
+        function loadBinData(binVal) {
+            currentActiveBin = binVal.toUpperCase();
             const expected = sapMasterData.filter(i => i.sapBin === currentActiveBin);
-            currentBinItems = expected.map(i => ({ ...i, verified:false, isMissing:false, countQty:0, isExtra:false, scannedBin:currentActiveBin }));
-            saveSession();
-            renderAuditList();
-            document.getElementById('bin-input').blur();
+            currentBinItems = expected.map(i => ({ 
+                ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: currentActiveBin 
+            }));
+            saveSession(); renderAuditList();
         }
-
-        document.getElementById('bin-input').addEventListener('keydown', e => {
-            if (e.key === 'Enter') selectBin(e.target.value);
-        });
-
-        // ─── RENDER ────────────────────────────────────────────────────────────────
-        function renderAuditList() {
-            const container = document.getElementById('audit-list');
-            container.innerHTML = "";
-            if (currentBinItems.length === 0 && currentActiveBin) {
-                container.innerHTML = `<div class="col-span-full p-20 text-center text-slate-400 italic text-sm uppercase font-black bg-white rounded-3xl border-2 border-dashed">Bin empty in SAP. Add physical items below.</div>`;
-            }
-            currentBinItems.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.id = `card-${index}`;
-                card.className = `p-6 rounded-[32px] shadow-lg border bg-white transition-all flex flex-col justify-between ${item.verified ? 'card-verified' : item.isMissing ? 'card-missing' : item.isExtra ? 'card-extra' : ''}`;
-                card.innerHTML = `
-                    <div class="space-y-2 mb-6">
-                        <div class="flex justify-between items-start">
-                            <span class="bg-slate-900 text-white px-3 py-1 rounded-lg font-mono text-[10px] font-bold tracking-tight">HU: ${item.hu}</span>
-                            <div class="text-right">
-                                <p class="text-[10px] font-black text-slate-400 uppercase">SAP Qty</p>
-                                <p class="text-2xl font-black text-slate-800">${item.isExtra ? '--' : item.sapQty} <span class="text-xs font-bold text-slate-400">${item.uom}</span></p>
-                            </div>
-                        </div>
-                        <h3 class="text-lg font-black text-slate-900 leading-tight">${item.product}</h3>
-                        <p class="text-[11px] text-slate-500 uppercase font-medium leading-tight">${item.desc}</p>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase">Batch: ${item.batch || '---'}</p>
-                    </div>
-                    <div class="flex gap-3 items-center">
-                        <button onclick="toggleFound(${index})"   class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.verified   ? 'bg-green-600 border-green-600 text-white' : 'border-slate-100 text-slate-300 bg-slate-50'}">Found</button>
-                        <button onclick="toggleMissing(${index})" class="flex-1 h-16 rounded-2xl font-black text-xs uppercase border-4 transition-all ${item.isMissing ? 'bg-red-600 border-red-600 text-white'   : 'border-slate-100 text-slate-300 bg-slate-50'}">Missing</button>
-                        <div class="flex-[1.5]">
-                            <input type="number" id="qty-input-${index}"
-                                value="${item.countQty || ''}"
-                                oninput="updateCount(${index}, this.value)"
-                                placeholder="QTY" inputmode="decimal" autocomplete="off"
-                                class="w-full h-16 bg-slate-100 rounded-2xl text-center font-black text-blue-700 outline-none border-4 border-transparent focus:border-blue-500 shadow-inner"
-                                style="font-size:22px;">
-                        </div>
-                        <button onclick="removeRow(${index})" class="p-4 text-slate-300 hover:text-red-500">✕</button>
-                    </div>`;
-                container.appendChild(card);
-                // Attach iOS fix to dynamically created qty input
-                const qtyEl = document.getElementById(`qty-input-${index}`);
-                if (qtyEl) attachIosFocus(qtyEl);
-            });
-            document.getElementById('stat-expected').innerText = currentBinItems.filter(i => !i.isExtra).length;
-        }
-
-        function toggleFound(idx)   { currentBinItems[idx].verified = !currentBinItems[idx].verified; if(currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; saveSession(); renderAuditList(); }
-        function toggleMissing(idx) { currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if(currentBinItems[idx].isMissing){currentBinItems[idx].verified=false;currentBinItems[idx].countQty=0;} saveSession(); renderAuditList(); }
-        function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val)||0; if(currentBinItems[idx].countQty>0){currentBinItems[idx].verified=true;currentBinItems[idx].isMissing=false;} saveSession(); }
-        function removeRow(idx)     { currentBinItems.splice(idx,1); saveSession(); renderAuditList(); }
 
         function finalizeBin() {
-            if (!currentActiveBin) return;
+            if(!currentActiveBin) return;
             let errors = false;
             currentBinItems.forEach((item, index) => {
                 const card = document.getElementById(`card-${index}`);
@@ -333,123 +346,205 @@
                     card.classList.add('card-error'); errors = true;
                 }
             });
-            if (errors) { document.getElementById('validation-msg').classList.remove('hidden'); return; }
+            if (errors) return;
             auditLog.push(...currentBinItems);
             binsAudited.add(currentActiveBin);
-            currentBinItems = []; currentActiveBin = "";
-            document.getElementById('bin-input').value = "";
-            document.getElementById('stat-bins-done').innerText = binsAudited.size;
+            
+            const isFloorBin = currentActiveBin.endsWith("100");
+            const nextBin = getNextPhysicalBin(currentActiveBin);
+
+            if (isFloorBin) {
+                stars++;
+                saveSession();
+                showRowEndPrompt(currentActiveBin.charAt(1), nextBin);
+            } else if (nextBin) {
+                selectBin(nextBin);
+            }
+            saveSession(); renderAuditList(); window.scrollTo(0,0);
+        }
+
+        function showRowEndPrompt(finishedRow, nextBin) {
+            const modal = document.getElementById('row-end-modal');
+            const text = document.getElementById('row-end-text');
+            const nextBtn = document.getElementById('btn-next-row');
+            text.innerText = `YOU CLEARED ROW ${finishedRow}!`;
+            if (nextBin) {
+                nextBtn.innerText = `GO TO ROW ${nextBin.charAt(1)}`;
+                nextBtn.onclick = () => { modal.classList.add('hidden'); selectBin(nextBin); };
+                nextBtn.classList.remove('hidden');
+            } else { nextBtn.classList.add('hidden'); }
+            modal.classList.remove('hidden');
+        }
+
+        // --- RENDER & TOOLS ---
+        function renderAuditList() {
+            const container = document.getElementById('audit-list');
+            container.innerHTML = "";
+            if (currentBinItems.length === 0 && currentActiveBin !== "") {
+                container.innerHTML = `<div class="p-10 text-center text-white retro-font text-[10px]">BIN IS EMPTY</div>`;
+            }
+            currentBinItems.forEach((item, index) => {
+                const card = document.createElement('div');
+                card.id = `card-${index}`;
+                card.className = `p-4 rounded-2xl game-card transition-all ${item.verified ? 'card-verified' : (item.isMissing ? 'card-missing' : (item.isExtra ? 'card-extra' : 'bg-white'))}`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <span class="inline-block px-2 py-0.5 bg-black text-white font-mono text-[10px] rounded mb-2">HU: ${item.hu}</span>
+                            <h3 class="text-sm font-black text-slate-800 leading-tight">${item.product}</h3>
+                            <p class="text-[10px] text-blue-600 font-bold uppercase mt-0.5">${item.desc}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-[8px] font-black text-slate-400 uppercase">SAP</p>
+                            <p class="text-lg font-black text-slate-700">${item.isExtra ? '--' : item.sapQty}</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex gap-2 items-center">
+                            ${!item.isExtra ? `<button onclick="quickConfirm(${index})" class="flex-[2] py-4 bg-green-500 text-white rounded-xl font-black border-2 border-black text-xs uppercase shadow-md active:scale-95">ALL ${item.sapQty}</button>` : ''}
+                            <button onclick="toggleMissing(${index})" class="flex-1 py-4 rounded-xl font-black text-[10px] uppercase border-2 border-black ${item.isMissing ? 'bg-red-600 text-white' : 'bg-white text-slate-400'}">MISSING</button>
+                        </div>
+                        <div class="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border-2 border-black">
+                            <button onclick="adjustQty(${index}, -1)" class="w-12 h-12 bg-white rounded-xl border-2 border-black text-2xl font-black">－</button>
+                            <input type="number" inputmode="decimal" value="${item.countQty || ''}" oninput="updateCount(${index}, this.value)" placeholder="0" class="flex-1 bg-transparent text-center font-black text-xl text-blue-700 outline-none">
+                            <button onclick="adjustQty(${index}, 1)" class="w-12 h-12 bg-white rounded-xl border-2 border-black text-2xl font-black">＋</button>
+                        </div>
+                    </div>`;
+                container.appendChild(card);
+            });
+        }
+
+        function quickConfirm(idx) {
+            currentBinItems[idx].countQty = currentBinItems[idx].sapQty;
+            currentBinItems[idx].verified = true;
+            currentBinItems[idx].isMissing = false;
             saveSession(); renderAuditList();
         }
 
-        // ─── FILE UPLOAD ───────────────────────────────────────────────────────────
+        function adjustQty(idx, delta) {
+            let current = currentBinItems[idx].countQty || 0;
+            currentBinItems[idx].countQty = Math.max(0, current + delta);
+            currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0);
+            if (currentBinItems[idx].verified) currentBinItems[idx].isMissing = false;
+            saveSession(); renderAuditList();
+        }
+
+        function toggleMissing(idx) { 
+            currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; 
+            if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } 
+            saveSession(); renderAuditList(); 
+        }
+
+        function updateCount(idx, val) { 
+            currentBinItems[idx].countQty = parseFloat(val) || 0; 
+            currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0);
+            if(currentBinItems[idx].countQty > 0) currentBinItems[idx].isMissing = false; 
+            saveSession();
+        }
+
         function handleFileUpload(event) {
             const file = event.target.files[0];
             const reader = new FileReader();
             reader.onload = (e) => {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
                 const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 sapMasterData = raw.map(row => ({
-                    sapBin:  String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
-                    hu:      String(row['Handling Unit'] || row['HU'] || "").trim(),
+                    sapBin: String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
+                    hu: String(row['Handling Unit'] || row['HU'] || "").trim(),
                     product: String(row['Product'] || ""),
-                    desc:    row['Product Short Description'] || "",
-                    batch:   String(row['Batch'] || ""),
-                    uom:     row['Base Unit of Measure'] || row['UoM'] || "EA",
-                    sapQty:  parseFloat(row['Quantity']) || 0
+                    desc: row['Product Short Description'] || row['Product short description'] || "",
+                    uom: row['Base Unit of Measure'] || "EA",
+                    sapQty: parseFloat(row['Quantity']) || 0
                 }));
-                uniqueBins = [...new Set(sapMasterData.map(i => i.sapBin))].sort();
-                saveSession(); location.reload();
+                saveSession(); unlockAudit();
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // ─── ADD ITEM MODAL ────────────────────────────────────────────────────────
-        function toggleAddForm() {
-            const modal = document.getElementById('add-item-modal');
-            const opening = modal.classList.contains('hidden');
-            modal.classList.toggle('hidden');
-            if (opening) {
-                // Attach iOS fix to all modal inputs (safe to call multiple times — guarded)
-                modal.querySelectorAll('input').forEach(attachIosFocus);
-                // Focus first field. setTimeout keeps us just outside the button-click
-                // gesture but still close enough that iOS allows it on most versions.
-                setTimeout(() => document.getElementById('add-hu').focus(), 50);
-            }
-        }
+        function toggleAddForm() { document.getElementById('add-item-modal').classList.toggle('hidden'); }
 
         function submitExtra() {
-            const hu    = document.getElementById('add-hu').value.trim();
-            const prod  = document.getElementById('add-prod').value.trim();
-            const batch = document.getElementById('add-batch').value.trim();
-            const uom   = document.getElementById('add-uom').value.trim() || "EA";
-            const qty   = parseFloat(document.getElementById('add-qty').value) || 0;
-            if (!currentActiveBin || !hu || !prod || qty <= 0) return alert("Fill all fields.");
+            const hu = document.getElementById('add-hu').value.trim();
+            const prod = document.getElementById('add-prod').value.trim();
+            const qty = parseFloat(document.getElementById('add-qty').value) || 0;
+            if(!currentActiveBin || !hu || !prod || qty <= 0) return alert("Fill all fields.");
             const sapMatch = sapMasterData.find(i => i.hu === hu);
-            const desc = hu === "0" ? "Missing/non-visible HU" : (sapMatch ? sapMatch.desc : "GHOST HU");
-            currentBinItems.push({ hu, product:prod, batch, uom, sapQty:sapMatch?sapMatch.sapQty:0, sapBin:sapMatch?sapMatch.sapBin:null, scannedBin:currentActiveBin, countQty:qty, verified:true, isMissing:false, isExtra:true, desc });
-            ['add-hu','add-prod','add-batch','add-uom','add-qty'].forEach(id => document.getElementById(id).value = "");
+            currentBinItems.push({ 
+                hu, product: prod, sapQty: sapMatch ? sapMatch.sapQty : 0, 
+                sapBin: sapMatch ? sapMatch.sapBin : null, scannedBin: currentActiveBin, 
+                countQty: qty, verified: true, isMissing: false, isExtra: !sapMatch, 
+                desc: sapMatch ? sapMatch.desc : "GHOST ITEM", uom: sapMatch ? sapMatch.uom : "EA" 
+            });
             toggleAddForm(); saveSession(); renderAuditList();
         }
 
-        function autoLookupExtra(input) {
-            const hu = input.value.trim();
-            if (hu.length >= 8) {
-                const match = sapMasterData.find(i => i.hu === hu);
-                if (match) {
-                    document.getElementById('add-prod').value  = match.product;
-                    document.getElementById('add-batch').value = match.batch;
-                    document.getElementById('add-uom').value   = match.uom;
-                    document.getElementById('add-qty').focus();
-                }
-            }
-        }
-
-        // ─── VIEW SWITCHING ────────────────────────────────────────────────────────
         function switchView(view) {
-            document.getElementById('view-audit').classList.toggle('hidden',  view !== 'audit');
+            document.getElementById('view-audit').classList.toggle('hidden', view !== 'audit');
             document.getElementById('view-report').classList.toggle('hidden', view !== 'report');
-            document.getElementById('nav-audit').classList.toggle('nav-active',     view === 'audit');
-            document.getElementById('nav-audit').classList.toggle('text-slate-400', view !== 'audit');
-            document.getElementById('nav-report').classList.toggle('nav-active',     view === 'report');
-            document.getElementById('nav-report').classList.toggle('text-slate-400', view !== 'report');
-            if (view === 'report') filterReport('move');
+            document.getElementById('nav-audit').classList.toggle('nav-active', view === 'audit');
+            document.getElementById('nav-report').classList.toggle('nav-active', view === 'report');
+            if(view === 'report') filterReport('move');
         }
 
-        // ─── REPORT ────────────────────────────────────────────────────────────────
+        // --- REPORTING LOGIC ---
+        function getReconciledData() {
+            const allRecords = [...auditLog, ...currentBinItems];
+            const huMap = {};
+            allRecords.forEach(rec => {
+                if (!huMap[rec.hu]) { huMap[rec.hu] = { ...rec }; } 
+                else {
+                    let existing = huMap[rec.hu];
+                    if ((rec.verified || rec.isExtra) && existing.isMissing) {
+                        existing.scannedBin = rec.scannedBin;
+                        existing.countQty = rec.countQty;
+                        existing.verified = true;
+                        existing.isMissing = false;
+                        if (!existing.sapBin && rec.sapBin) existing.sapBin = rec.sapBin;
+                    }
+                }
+            });
+            return Object.values(huMap);
+        }
+
         function filterReport(type) {
             const container = document.getElementById('report-body');
             container.innerHTML = "";
-            document.querySelectorAll('[id^="f-"]').forEach(b => b.className = "px-8 py-3 rounded-xl text-xs font-black uppercase bg-white border-2 border-slate-200");
-            document.getElementById(`f-${type}`).className = "px-8 py-3 rounded-xl text-xs font-black uppercase bg-blue-600 border-blue-600 text-white shadow-lg";
-            const combined = [...auditLog, ...currentBinItems];
-            const foundHUs = new Set(combined.filter(i => i.verified).map(i => i.hu));
+            const reconciled = getReconciledData();
             let filtered = [];
-            if      (type==='move')     filtered = combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified);
-            else if (type==='adj')      filtered = combined.filter(i => i.sapBin === i.scannedBin && i.countQty !== i.sapQty && !i.isMissing && i.verified);
-            else if (type==='inactive') filtered = combined.filter(i => i.sapBin === null);
-            else if (type==='missing')  filtered = combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu));
-            if (!filtered.length) { container.innerHTML = `<div class="p-20 text-center text-slate-300 uppercase font-black text-sm">No discrepancies</div>`; return; }
+
+            if (type === 'move') filtered = reconciled.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified);
+            else if (type === 'adj') filtered = reconciled.filter(i => i.verified && i.countQty !== i.sapQty);
+            else if (type === 'missing') filtered = reconciled.filter(i => i.isMissing);
+            else if (type === 'inactive') filtered = reconciled.filter(i => i.isExtra && !i.sapBin);
+            
             filtered.forEach(i => {
                 const div = document.createElement('div');
-                div.className = "p-5 bg-slate-50 rounded-2xl border border-slate-200 shadow-sm flex justify-between items-center";
-                div.innerHTML = `<div><p class="font-mono text-[10px] font-bold text-slate-400">HU: ${i.hu}</p><p class="font-black text-sm">${i.product}</p></div><div class="text-right"><p class="text-[10px] font-black text-blue-600 uppercase">Found In: ${i.scannedBin}</p><p class="text-sm font-black">SAP: ${i.sapQty} | CNT: ${i.countQty}</p></div>`;
+                div.className = "p-4 bg-white rounded-2xl border-2 border-black space-y-2";
+                div.innerHTML = `<p class="retro-font text-[8px]">HU: ${i.hu}</p><p class="text-xs font-bold">${i.product}</p><p class="text-[10px] text-blue-600">LOC: ${i.scannedBin}</p>`;
                 container.appendChild(div);
             });
         }
 
         function sendEmailReport() {
             const user = document.getElementById('email-user').value.trim();
-            if (!user) return alert("Enter Novus username.");
-            const combined = [...auditLog, ...currentBinItems];
-            const foundHUs = new Set(combined.filter(i => i.verified).map(i => i.hu));
-            const addSection = (title, data) => { if(!data.length) return ""; let s=`\n--- ${title.toUpperCase()} ---\n`; data.forEach(i => s+=`HU:${i.hu} | Prod:${i.product} | SAP Bin:${i.sapBin||'N/A'} | Found In:${i.scannedBin} | SAP:${i.sapQty} | Cnt:${i.countQty} ${i.uom}\n`); return s; };
-            let body = `NOVUS FOODS AUDIT - ${new Date().toLocaleString()}\n`;
-            body += addSection("Movements",   combined.filter(i => i.sapBin && i.sapBin !== i.scannedBin && i.verified));
-            body += addSection("Adjustments", combined.filter(i => i.sapBin === i.scannedBin && i.countQty !== i.sapQty && !i.isMissing && i.verified));
-            body += addSection("Inactive",    combined.filter(i => i.sapBin === null));
-            body += addSection("Missing",     combined.filter(i => (i.isMissing || (!i.verified && !i.isExtra)) && !foundHUs.has(i.hu)));
-            window.location.href = `mailto:${user}@novusfoods.com?subject=iPad Audit Report&body=${encodeURIComponent(body)}`;
+            if (!user) return alert("Enter username.");
+            const reconciled = getReconciledData();
+            let body = `AUDIT SCOREBOARD\nSTARS EARNED: ${stars}\n\n`;
+            reconciled.forEach(i => {
+                body += `HU: ${i.hu} | SAP: ${i.sapBin} | FOUND: ${i.scannedBin} | QTY: ${i.countQty}\n`;
+            });
+            window.location.href = `mailto:${user}@novusfoods.com?subject=Warehouse Audit Results&body=${encodeURIComponent(body)}`;
+        }
+
+        function autoLookupExtra(input) {
+            const hu = input.value.trim();
+            if (hu.length >= 8) {
+                const match = sapMasterData.find(i => i.hu === hu);
+                if (match) { 
+                    document.getElementById('add-prod').value = match.product; 
+                    document.getElementById('add-qty').focus(); 
+                }
+            }
         }
     </script>
 </body>

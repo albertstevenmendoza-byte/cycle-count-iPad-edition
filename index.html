@@ -3,464 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SAP PARTY | Audit Quest</title>
+    <title>SAP Auditor | Floor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700&display=swap" rel="stylesheet">
     <style>
-        :root { --m-red: #e52521; --m-blue: #049cd8; --m-yellow: #fbd000; --m-green: #43b047; }
-        body { font-family: 'Segoe UI', sans-serif; background: #5c94fc; overflow: hidden; }
-        .retro-font { font-family: 'Press Start 2P', cursive; }
-        
-        /* 3D BLOCK BUTTONS */
-        .btn-3d { position: relative; transition: all 0.1s; border: 3px solid #000; box-shadow: 0 6px 0 #000; top: 0; }
-        .btn-3d:active { top: 4px; box-shadow: 0 2px 0 #000; }
-        
-        /* INTEGRITY STYLES */
-        input[type="number"], input[type="text"] { font-size: 16px !important; }
-        .card-verified { border: 6px solid var(--m-green) !important; background-color: #f0fdf4; }
-        .card-missing { border: 6px solid var(--m-red) !important; background-color: #fef2f2; opacity: 0.8; }
-        .card-extra { border: 6px solid #a855f7 !important; background-color: #f5f3ff; }
-        .card-error { border: 6px solid var(--m-red) !important; animation: shake 0.2s 2; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
-        
-        /* WORLD MAP & TRACKER */
-        .world-map { background: #000; border-bottom: 4px solid var(--m-yellow); display: flex; overflow-x: auto; padding: 12px; gap: 15px; scrollbar-width: none; }
-        .aisle-node { min-width: 35px; height: 35px; background: #333; border: 2px solid #666; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 8px; border-radius: 4px; }
-        .aisle-active { background: var(--m-blue); border-color: #fff; box-shadow: 0 0 15px var(--m-blue); }
-
-        .bay-track { height: 12px; background: rgba(0,0,0,0.2); border: 2px solid #000; border-radius: 10px; position: relative; margin: 25px 0; }
-        .track-char { position: absolute; top: -32px; left: 0%; transition: left 0.5s ease-in-out; }
-        
-        .nav-active { background-color: var(--m-yellow); color: black; border: 4px solid black; transform: translateY(-4px); box-shadow: 0 4px 0 #000; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+        .card-verified { border-left: 10px solid #10b981; background: linear-gradient(to right, #f0fdf4, #ffffff); }
+        .card-missing { border-left: 10px solid #ef4444; background: #fef2f2; opacity: 0.7; }
+        .card-extra { border-left: 10px solid #8b5cf6; background: #f5f3ff; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border-top: 1px solid rgba(0,0,0,0.05); }
+        #toast, #msg-notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 400; pointer-events: none; opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #msg-notification { top: -100px; pointer-events: auto; }
+        #msg-notification.show { top: 20px; opacity: 1; }
+        .nav-active { background-color: #2563eb !important; color: white !important; }
+        .row-progress-badge { font-size: 8px; background: #e2e8f0; padding: 2px 6px; border-radius: 99px; position: absolute; top: -5px; right: -5px; }
+        .tag-both { background: #1e293b; color: #f8fafc; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 900; }
     </style>
 </head>
-<body class="flex flex-col h-screen">
+<body class="bg-slate-50 flex flex-col h-screen overflow-hidden">
 
-    <!-- HUD -->
-    <header class="shrink-0 z-50">
-        <div class="bg-black p-2 flex justify-between items-center border-b-2 border-slate-800">
-            <div class="flex gap-4">
-                <div><p class="text-[6px] retro-font text-slate-500 mb-1">AUDITOR</p><p id="hud-name" class="text-[8px] retro-font text-white uppercase">---</p></div>
-                <div><p class="text-[6px] retro-font text-slate-500 mb-1">STARS</p><p class="text-[8px] retro-font text-yellow-400">⭐x<span id="star-count">0</span></p></div>
-            </div>
-            <div class="flex items-center gap-2">
-                <div id="data-status" class="text-[6px] retro-font text-slate-500 mr-2">OFFLINE</div>
-                <button onclick="clearAllData()" class="btn-3d bg-red-600 text-white px-2 py-1 retro-font text-[6px] border-2 border-white">RESET</button>
-            </div>
-        </div>
-        <div id="world-map" class="world-map no-scrollbar"></div>
-    </header>
-
-    <!-- Navigation -->
-    <nav class="bg-blue-900 flex p-1 gap-1 border-b-4 border-black shrink-0">
-        <button id="nav-audit" onclick="switchView('audit')" class="flex-1 py-3 text-[8px] retro-font uppercase nav-active">AUDIT WORLD</button>
-        <button id="nav-report" onclick="switchView('report')" class="flex-1 py-3 text-[8px] retro-font uppercase text-white">SCOREBOARD</button>
-    </nav>
-
-    <!-- AUDIT VIEW -->
-    <main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
-        <!-- STARTUP SCREEN -->
-        <div id="setup-screen" class="absolute inset-0 bg-blue-500 z-40 flex flex-col p-6 overflow-y-auto">
-            <div id="char-selection" class="text-center">
-                <h2 class="retro-font text-white text-[10px] mb-10">SELECT CHARACTER</h2>
-                <div class="grid grid-cols-2 gap-6 max-w-xs mx-auto">
-                    <button onclick="selectChar('mario')" class="btn-3d bg-white p-4 rounded-2xl"><div class="w-12 h-12 mx-auto mb-2" id="svg-mario"></div><p class="retro-font text-[8px]">MARIO</p></button>
-                    <button onclick="selectChar('luigi')" class="btn-3d bg-white p-4 rounded-2xl"><div class="w-12 h-12 mx-auto mb-2" id="svg-luigi"></div><p class="retro-font text-[8px]">LUIGI</p></button>
-                    <button onclick="selectChar('peach')" class="btn-3d bg-white p-4 rounded-2xl"><div class="w-12 h-12 mx-auto mb-2" id="svg-peach"></div><p class="retro-font text-[8px]">PEACH</p></button>
-                    <button onclick="selectChar('toad')" class="btn-3d bg-white p-4 rounded-2xl"><div class="w-12 h-12 mx-auto mb-2" id="svg-toad"></div><p class="retro-font text-[8px]">TOAD</p></button>
-                </div>
-            </div>
-            <div id="upload-prompt" class="hidden mt-12 flex flex-col items-center">
-                <h2 class="retro-font text-white text-[10px] mb-6">INSERT SAP DISK</h2>
-                <input type="file" id="sap-upload-main" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-                <label for="sap-upload-main" class="btn-3d bg-green-500 text-white px-10 py-5 rounded-xl retro-font text-[10px] cursor-pointer">LOAD FILE</label>
-            </div>
-            <div id="row-selection" class="hidden mt-8 grid grid-cols-4 gap-3 max-w-sm mx-auto"></div>
-        </div>
-
-        <!-- PROGRESS HUD -->
-        <div class="px-6 bg-white border-b-4 border-black">
-            <div class="bay-track">
-                <div id="track-char" class="track-char w-10 h-10"></div>
-            </div>
-            <div class="flex justify-between text-[6px] retro-font text-slate-400 pb-2 uppercase">
-                <span>Bay 00</span><span id="current-bin-display" class="text-blue-600 font-bold">---</span><span>Bay 39</span>
-            </div>
-        </div>
-
-        <!-- INPUT AREA -->
-        <div class="p-3 bg-slate-100 border-b-4 border-black shrink-0">
-            <div class="flex gap-2">
-                <button onclick="stepBin(-1)" class="btn-3d bg-blue-500 text-white px-4 rounded-xl font-black">◀</button>
-                <input type="text" id="bin-input" placeholder="SCAN BIN..." autocomplete="off"
-                       class="flex-1 p-4 bg-white border-2 border-black rounded-xl text-xl font-black text-blue-700 uppercase outline-none"
-                       oninput="suggestBins(this.value)">
-                <button onclick="stepBin(1)" class="btn-3d bg-blue-500 text-white px-4 rounded-xl font-black">▶</button>
-            </div>
-            <div id="bin-suggestions" class="flex gap-2 mt-3 overflow-x-auto no-scrollbar pb-1"></div>
-        </div>
-
-        <!-- LIST AREA -->
-        <div id="audit-list" class="flex-1 overflow-y-auto p-3 space-y-4 pb-56"></div>
-
-        <!-- FOOTER -->
-        <div class="fixed bottom-0 left-0 right-0 bg-black p-3 z-50 border-t-4 border-yellow-400">
-            <div class="flex gap-2 mb-3">
-                <button onclick="toggleAddForm()" class="btn-3d flex-1 bg-orange-500 text-white py-3 rounded-xl retro-font text-[8px]">+ FOUND ITEM</button>
-                <button onclick="finalizeBin()" class="btn-3d flex-1 bg-slate-700 text-slate-300 py-3 rounded-xl retro-font text-[8px]">MARK EMPTY</button>
-            </div>
-            <button onclick="finalizeBin()" class="btn-3d w-full bg-green-500 text-white py-4 rounded-xl retro-font text-[10px]">FINALIZE & NEXT BIN</button>
-        </div>
-    </main>
-
-    <!-- STAR MODAL -->
-    <div id="row-end-modal" class="hidden fixed inset-0 bg-blue-600/95 z-[70] p-6 flex items-center justify-center">
-        <div class="text-center">
-            <div class="text-9xl mb-10" style="animation: spin 2s infinite linear;">⭐</div>
-            <h2 class="retro-font text-white text-xl mb-4">AISLE CLEAR!</h2>
-            <p id="row-end-text" class="text-yellow-300 retro-font text-[8px] mb-10"></p>
-            <button id="btn-next-row" class="btn-3d w-full bg-yellow-400 text-black py-5 rounded-2xl retro-font text-[10px]">NEXT WORLD</button>
-        </div>
+    <div id="toast" class="bg-green-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase shadow-2xl">Synced</div>
+    <div id="msg-notification" onclick="switchView('report')" class="bg-blue-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-4 min-w-[280px] cursor-pointer">
+        <div class="bg-white/20 p-2 rounded-lg text-lg">💬</div>
+        <div><p id="msg-sender" class="text-[10px] font-black uppercase mb-1">Office</p><p id="msg-preview" class="text-xs font-bold truncate max-w-[200px]">New message</p></div>
     </div>
 
-    <!-- REPORT -->
-    <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden p-3 space-y-3">
-        <div id="report-body" class="flex-1 overflow-y-auto space-y-3"></div>
-        <button onclick="sendEmailReport()" class="btn-3d w-full bg-blue-600 text-white py-4 rounded-xl retro-font text-[8px]">SEND SCOREBOARD</button>
+    <header class="bg-slate-900 text-white px-4 py-3 shadow-2xl shrink-0 z-50 flex justify-between items-center">
+        <div class="flex items-center gap-3"><div class="bg-blue-600 p-2 rounded-xl text-lg">📦</div><h1 class="text-sm font-black uppercase tracking-tighter">SAP Auditor</h1></div>
+        <button onclick="clearAllData()" class="bg-slate-800 text-slate-400 px-3 py-2 text-[10px] uppercase font-black rounded-lg">Reset</button>
+    </header>
+
+    <nav class="bg-white border-b flex p-1.5 shrink-0 gap-1">
+        <button id="nav-audit" onclick="switchView('audit')" class="flex-1 py-3 text-[10px] font-black uppercase nav-active rounded-xl">Audit Mode</button>
+        <button id="nav-report" onclick="switchView('report')" class="flex-1 py-3 text-[10px] font-black uppercase text-slate-400 bg-slate-50 rounded-xl">Live Report</button>
+    </nav>
+
+    <main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
+        <div id="setup-screen" class="absolute inset-0 bg-slate-50 z-[60] flex flex-col p-6 overflow-y-auto">
+            <div id="upload-prompt" class="flex-1 flex flex-col items-center justify-center text-center">
+                <h2 class="text-3xl font-black uppercase mb-2">Upload Data</h2>
+                <input type="file" id="sap-upload-main" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
+                <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer">Select Excel File</label>
+            </div>
+            <div id="row-selection" class="hidden space-y-6">
+                <!-- NEW: Product Cycle Count Section -->
+                <div class="bg-white p-4 rounded-3xl border shadow-sm">
+                    <p class="text-[10px] font-black uppercase text-slate-400 mb-2">Product Cycle Count</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="prod-cycle-input" placeholder="Enter Product ID (e.g. 4408551)" class="flex-1 p-3 bg-slate-50 border rounded-xl mono text-sm outline-none">
+                        <button onclick="startProductCycle()" class="bg-orange-500 text-white px-4 rounded-xl font-black text-[10px] uppercase">Search</button>
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-end"><h2 class="text-2xl font-black uppercase">Select Row</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Bins Done</span></div>
+                <div class="grid grid-cols-4 gap-4" id="row-grid"></div>
+            </div>
+        </div>
+
+        <div class="px-4 py-4 bg-white border-b shrink-0">
+            <div class="flex gap-2">
+                <button onclick="stepBin(-1)" class="bg-slate-100 text-slate-400 w-12 rounded-2xl">◀</button>
+                <div class="flex-1 relative">
+                    <input type="text" id="bin-input" placeholder="SCAN BIN..." class="w-full py-4 px-6 bg-slate-50 border-2 rounded-2xl text-xl mono text-blue-700 uppercase outline-none" onchange="selectBin(this.value)">
+                    <span id="bin-status-badge" class="hidden absolute right-4 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[8px] font-black px-2 py-1 rounded-lg">✅ DONE</span>
+                </div>
+                <button onclick="stepBin(1)" class="bg-slate-100 text-slate-400 w-12 rounded-2xl">▶</button>
+            </div>
+        </div>
+
+        <div id="audit-list" class="flex-1 overflow-y-auto p-4 space-y-4 pb-64"></div>
+
+        <div class="fixed bottom-0 left-0 right-0 glass p-4 shadow-2xl z-50">
+            <div class="flex gap-3 mb-4">
+                <button onclick="toggleAddForm()" class="flex-1 bg-white border-2 border-orange-500 text-orange-600 py-4 rounded-2xl font-black uppercase text-[11px]">+ Found Item</button>
+                <button onclick="leaveAisle()" class="flex-1 bg-slate-100 text-slate-600 rounded-2xl flex items-center justify-center font-black uppercase text-[11px] gap-2 border border-slate-200">🚪 Leave Aisle</button>
+            </div>
+            <button onclick="finalizeBin()" class="w-full bg-blue-600 text-white py-5 rounded-2xl font-black uppercase text-sm shadow-xl">Finalize & Next Bin</button>
+        </div>
     </main>
 
-    <!-- ADD ITEM MODAL -->
-    <div id="add-item-modal" class="hidden fixed inset-0 bg-black/80 z-[60] p-4 flex items-center justify-center">
-        <div class="bg-white w-full max-w-sm rounded-3xl border-4 border-black p-6 space-y-4">
-            <h2 class="retro-font text-[10px]">ADD PHYSICAL ITEM</h2>
-            <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-4 border-2 border-black rounded-xl font-bold" oninput="autoLookupExtra(this)">
-            <input type="text" id="add-prod" placeholder="Product ID" class="w-full p-4 border-2 border-black rounded-xl font-bold">
-            <input type="number" id="add-qty" placeholder="Count" class="w-full p-5 bg-yellow-50 border-2 border-black rounded-xl font-black text-center text-2xl outline-none">
-            <div class="flex gap-3">
-                <button onclick="toggleAddForm()" class="flex-1 retro-font text-[8px]">BACK</button>
-                <button onclick="submitExtra()" class="btn-3d flex-[2] bg-orange-500 text-white py-4 rounded-xl retro-font text-[8px]">ADD ITEM</button>
+    <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden">
+        <div id="report-body" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        <div class="bg-white p-5 border-t shrink-0">
+            <div id="mobile-chat" class="h-24 overflow-y-auto bg-slate-50 p-2 rounded-lg text-[10px] mb-2"></div>
+            <div class="flex gap-2">
+                <input type="text" id="email-user" placeholder="Name" class="w-20 p-2 bg-slate-50 rounded-lg text-xs outline-none">
+                <input type="text" id="mobile-msg" placeholder="Chat..." class="flex-1 p-2 bg-slate-50 rounded-lg text-xs outline-none">
+                <button onclick="sendMobileMsg()" class="bg-blue-600 text-white px-4 rounded-lg font-bold">↑</button>
             </div>
+        </div>
+    </main>
+
+    <div id="add-item-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] p-4 flex items-center justify-center">
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 space-y-5 shadow-2xl">
+            <div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Physical Find</h2><span id="smart-fill-badge" class="hidden bg-green-100 text-green-600 text-[8px] font-black px-2 py-1 rounded-full animate-pulse uppercase">Smart Filled</span></div>
+            <div class="space-y-4">
+                <input type="text" id="add-hu" placeholder="HU (0 if Missing Label)" class="w-full p-4 bg-slate-50 border-2 rounded-2xl mono font-bold outline-none" oninput="autoLookupExtra(this)">
+                <div class="grid grid-cols-2 gap-3"><input type="text" id="add-prod" placeholder="Item #" class="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none"><input type="text" id="add-batch" placeholder="Batch" class="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none"></div>
+                <input type="number" id="add-qty" placeholder="Count" class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-3xl text-blue-700 outline-none">
+            </div>
+            <div class="flex gap-3 pt-4"><button onclick="toggleAddForm()" class="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancel</button><button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-4 rounded-2xl font-black uppercase shadow-lg">Confirm Add</button></div>
         </div>
     </div>
 
     <script>
-        // --- SOUND ENGINE ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        function playSFX(type) {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            const now = audioCtx.currentTime;
-            if (type === 'coin') {
-                osc.type = 'square'; osc.frequency.setValueAtTime(987, now);
-                osc.frequency.exponentialRampToValueAtTime(1318, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now); osc.stop(now + 0.3);
-            } else if (type === 'jump') {
-                osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now);
-                osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
-                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                osc.start(now); osc.stop(now + 0.15);
-            } else if (type === 'star') {
-                [0, 0.1, 0.2, 0.3].forEach((t, i) => {
-                    const o = audioCtx.createOscillator(); o.connect(gain); o.type = 'square';
-                    o.frequency.setValueAtTime(523 * (1 + i*0.25), now + t); o.start(now + t); o.stop(now + t + 0.1);
-                });
-            } else if (type === 'buzz') {
-                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(110, now);
-                gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
-                osc.start(now); osc.stop(now + 0.2);
-            }
-        }
+        const API_URL = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
+        const ALL_SAP_BINS = ["B101","B102","B103","B104","B105","B106","B107","B108","B109","B110","B111","B112","B113","B114","CLARIFICATION","C_TRUCK","FA01A","FA01B","FA02A","FA02B","FA03A","FA03B","FA04A","FA04B","FA05A","FA05B","FA06A","FA06B","FA07A","FA07B","FA08A","FA08B","FB01A","FB01B","FB02A","FB02B","FB03A","FB03B","FB04A","FB04B","FB05A","FB05B","FB06A","FB06B","FB07A","FB07B","FB08A","FB08B","FC01A","FC01B","FC02A","FC02B","FC03A","FC03B","FC04A","FC04B","FC05A","FC05B","FC06A","FC06B","FC07A","FC07B","FB08A","FB08B","FD01A","FD01B","FD02A","FD02B","FD03A","FD03B","FD04A","FD04B","FD05A","FD05B","FD06A","FD06B","FD07A","FD07B","FD08A","FD08B","FD09A","FD09B","FD10A","FD10B","GR-PRODUCTION","GR-ZONE","GR-ZONE-SMALLPARC","KITS-FLOOR","MIXAREA1_HU_FIX","MIXAREA2_HU_FIX","PACKRM1_NHU","PACKRM2_NHU","PACKRM2_HU_FIX","PKG_RETURN","PRFL-01-02","PRFL-01-04","PSA-INTERMEDIATE","RECV-HOLD","RECV01","RECV02","RECV03","RECV04","RETURN-BLND-FLOOR","SIG-INSIDE-01","SIG-INSIDE-02","STG01","STG02","STG03","STG04","STG05","STG06","STG07","STG08","STG09","STG10","STG11","STG12","STG13","STG14","STG_RTN","VIRTUAL_BIN","VIRTUAL_FLUID_LOAD","VIRTUAL_RET_BIN"];
+        const aisleConfigs = {A:36, B:38, C:38, D:38, E:38, F:38, G:38, H:38, J:37, K:12, L:34, M:35, N:24, P:6};
+        Object.keys(aisleConfigs).forEach(char => { for(let i=0; i<=aisleConfigs[char]; i++){ const bay = i.toString().padStart(2,'0'); ALL_SAP_BINS.push(`W${char}${bay}A`,`W${char}${bay}B`,`W${char}${bay}C`); } ALL_SAP_BINS.push(`W${char}100`); });
 
-        // --- NEW TALLY SFX (Plays a sequence of coins based on item count) ---
-        function playTallySFX(count) {
-            let items = Math.min(count, 10); // Cap at 10 sounds so it's not annoying
-            if (items === 0) { playSFX('coin'); return; }
-            for(let i=0; i<items; i++) {
-                setTimeout(() => playSFX('coin'), i * 120);
-            }
-        }
-
-        // --- CHARACTERS ---
-        const chars = {
-            mario: `<svg viewBox="0 0 16 16"><path fill="#f00" d="M4 0h8v2H4zM2 2h12v2H2zM0 4h16v3H0z"/><path fill="#fca" d="M3 7h10v4H3zM5 11h6v1H5z"/><path fill="#00f" d="M4 12h8v3H4z"/><circle cx="6" cy="9" r="1"/><circle cx="10" cy="9" r="1"/></svg>`,
-            luigi: `<svg viewBox="0 0 16 16"><path fill="#0a0" d="M4 0h8v2H4zM2 2h12v2H2zM0 4h16v3H0z"/><path fill="#fca" d="M3 7h10v4H3zM5 11h6v1H5z"/><path fill="#00f" d="M4 12h8v3H4z"/><circle cx="6" cy="9" r="1"/><circle cx="10" cy="9" r="1"/></svg>`,
-            peach: `<svg viewBox="0 0 16 16"><path fill="#f9c" d="M4 0h8v7H4z"/><path fill="#ff0" d="M4 0l2 2 2-2 2 2 2-2v2H4z"/><path fill="#fca" d="M5 3h6v4H5z"/><path fill="#f9c" d="M2 7h12v9H2z"/><circle cx="8" cy="5" r="1" fill="#0cf"/></svg>`,
-            toad: `<svg viewBox="0 0 16 16"><path fill="#fff" d="M3 0h10v7H3z"/><circle fill="red" cx="8" cy="2" r="2"/><circle fill="red" cx="4" cy="4" r="2"/><circle fill="red" cx="12" cy="4" r="2"/><path fill="#fca" d="M5 7h6v4H5z"/><path fill="#fff" d="M4 11h8v5H4z"/></svg>`
-        };
-
-        // --- DATA STATE (INTEGRITY PRESERVED) ---
         let sapMasterData = JSON.parse(localStorage.getItem('sapMasterData')) || [];
-        let auditLog = JSON.parse(localStorage.getItem('auditLog')) || []; 
-        let currentBinItems = JSON.parse(localStorage.getItem('currentBinItems')) || [];
-        let currentActiveBin = localStorage.getItem('currentActiveBin') || "";
-        let binsAudited = new Set(JSON.parse(localStorage.getItem('binsAudited')) || []);
-        let stars = parseInt(localStorage.getItem('stars')) || 0;
-        let selectedCharacter = localStorage.getItem('selectedCharacter') || 'mario';
+        // Performance Indexes
+        let sapBinIndex = {}; 
+        let sapHUIndex = new Map();
 
-        function saveSession() {
-            localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
-            localStorage.setItem('auditLog', JSON.stringify(auditLog));
-            localStorage.setItem('currentBinItems', JSON.stringify(currentBinItems));
-            localStorage.setItem('currentActiveBin', currentActiveBin);
-            localStorage.setItem('binsAudited', JSON.stringify(Array.from(binsAudited)));
-            localStorage.setItem('stars', stars);
-            localStorage.setItem('selectedCharacter', selectedCharacter);
-            updateGameUI();
-        }
+        let auditLog = []; let currentBinItems = []; let currentActiveBin = ""; let lastMsgTime = 0; let cloudReport = [];
 
-        function updateGameUI() {
-            document.getElementById('star-count').innerText = stars;
-            document.getElementById('hud-name').innerText = selectedCharacter;
-            document.getElementById('track-char').innerHTML = chars[selectedCharacter];
-            
-            const map = document.getElementById('world-map');
-            map.innerHTML = "";
-            "ABCDEFGHIJKLMNOP".split("").forEach(row => {
-                const isActive = currentActiveBin && currentActiveBin.charAt(1) === row;
-                const div = document.createElement('div');
-                div.className = `aisle-node shrink-0 ${isActive ? 'aisle-active' : ''}`;
-                div.innerHTML = isActive ? chars[selectedCharacter] : row;
-                if(isActive) div.scrollIntoView({behavior:'smooth', block:'center'});
-                map.appendChild(div);
+        function haptic() { if (window.navigator.vibrate) window.navigator.vibrate(40); }
+
+        function rebuildIndexes() {
+            sapBinIndex = {};
+            sapHUIndex = new Map();
+            sapMasterData.forEach(item => {
+                if (!sapBinIndex[item.sapBin]) sapBinIndex[item.sapBin] = [];
+                sapBinIndex[item.sapBin].push(item);
+                sapHUIndex.set(item.hu, item);
             });
-
-            if(currentActiveBin) {
-                const bay = parseInt(currentActiveBin.substring(2, 4)) || 0;
-                const percent = currentActiveBin.endsWith("100") ? 100 : (bay / 39) * 100;
-                document.getElementById('track-char').style.left = `${percent}%`;
-                document.getElementById('current-bin-display').innerText = currentActiveBin;
-            }
         }
 
-        // --- ORIGINAL LOGIC (INTEGRITY PRESERVED) ---
-        function getNextPhysicalBin(current) {
-            if (!current) return null;
-            let row = current.charAt(1);
-            if (current.endsWith("100")) {
-                let nextRow = String.fromCharCode(row.charCodeAt(0) + 1);
-                return nextRow > 'P' ? null : `W${nextRow}00A`;
-            }
-            let bay = parseInt(current.substring(2, 4));
-            let level = current.charAt(4);
-            if (level === 'A') level = 'B';
-            else if (level === 'B') level = 'C';
-            else {
-                if (bay >= 39) return `W${row}100`;
-                else { level = 'A'; bay++; }
-            }
-            return `W${row}${bay.toString().padStart(2, '0')}${level}`;
+        function handleFileUpload(event) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                sapMasterData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]).map(row => ({
+                    sapBin: String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
+                    hu: String(row['Handling Unit'] || row['HU'] || "").trim(),
+                    product: String(row['Product'] || ""),
+                    batch: String(row['Batch'] || row['Batch Number'] || row['Charg'] || "").trim(),
+                    desc: row['Product Short Description'] || row['Product short description'] || row['Description'] || "",
+                    sapQty: parseFloat(row['Quantity']) || 0
+                }));
+                localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
+                rebuildIndexes();
+                document.getElementById('upload-prompt').classList.add('hidden'); document.getElementById('row-selection').classList.remove('hidden'); initSetupGrid();
+            };
+            reader.readAsArrayBuffer(event.target.files[0]);
         }
 
-        function getPrevPhysicalBin(current) {
-            if (!current) return null;
-            let row = current.charAt(1);
-            if (current.endsWith("100")) return `W${row}39C`;
-            let bay = parseInt(current.substring(2, 4));
-            let level = current.charAt(4);
-            if (level === 'C') level = 'B';
-            else if (level === 'B') level = 'A';
-            else {
-                if (bay === 0) return null;
-                level = 'C'; bay--;
-            }
-            return `W${row}${bay.toString().padStart(2, '0')}${level}`;
-        }
-
-        function stepBin(dir) {
-            playSFX('jump');
-            const next = dir > 0 ? getNextPhysicalBin(currentActiveBin) : getPrevPhysicalBin(currentActiveBin);
-            if (next) selectBin(next);
-        }
-
-        function loadBinData(binVal) {
-            currentActiveBin = binVal.toUpperCase();
-            const expected = sapMasterData.filter(i => i.sapBin === currentActiveBin);
-            currentBinItems = expected.map(i => ({ 
-                ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: currentActiveBin 
-            }));
-            saveSession(); renderAuditList();
-        }
-
-        function selectBin(binName) {
-            document.getElementById('bin-input').value = binName;
-            loadBinData(binName);
-            suggestBins("");
+        async function syncCloud() {
+            try {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                cloudReport = data.report || [];
+                if (data.chat && data.chat.length > 0) {
+                    const latest = data.chat[data.chat.length - 1];
+                    const currentUser = document.getElementById('email-user').value || "Floor";
+                    if (lastMsgTime !== 0 && latest.time > lastMsgTime && latest.user !== currentUser) {
+                        haptic(); document.getElementById('msg-sender').innerText = latest.user; document.getElementById('msg-preview').innerText = latest.text;
+                        document.getElementById('msg-notification').classList.add('show'); setTimeout(() => document.getElementById('msg-notification').classList.remove('show'), 5000);
+                    }
+                    lastMsgTime = latest.time;
+                }
+                document.getElementById('mobile-chat').innerHTML = data.chat.map(m => `<div><span class="font-black text-blue-600">${m.user}:</span> ${m.text}</div>`).join('');
+                updateRowProgressUI();
+            } catch(e){}
         }
 
         function finalizeBin() {
             if(!currentActiveBin) return;
-            let errors = false;
-            let verifiedCount = 0;
-            currentBinItems.forEach((item, index) => {
-                if ((item.verified && item.countQty <= 0) || (!item.verified && !item.isMissing)) {
-                    document.getElementById(`card-${index}`).classList.add('card-error'); errors = true;
-                }
-                if (item.verified) verifiedCount++;
+            haptic();
+            if (currentBinItems.some(i => !i.verified && !i.isMissing)) { alert("Finish bin first."); return; }
+            
+            // PRE-CALCULATE LOG (Optimized with Index)
+            let itemsToLog = currentBinItems.length === 0 ? [{ hu: "EMPTY_BIN", product: "NONE", desc: "Confirmed Empty", batch: "", sapBin: "", scannedBin: currentActiveBin, sapQty: 0, countQty: 0, type: 'ok' }] : currentBinItems.map(i => {
+                let type = 'ok';
+                if (i.isMissing) type = 'miss';
+                else if (i.isExtra && (!sapHUIndex.has(i.hu) || i.hu === "0")) type = 'inactive';
+                else if (i.sapBin && i.scannedBin !== i.sapBin) type = 'move';
+                else if (i.countQty !== i.sapQty) type = 'adj';
+                return { hu: i.hu, product: i.product, desc: i.desc, batch: i.batch, sapBin: i.sapBin, scannedBin: i.scannedBin, sapQty: i.sapQty, countQty: i.countQty, type: type };
             });
-            if (errors) { playSFX('buzz'); return; }
-            
-            auditLog.push(...currentBinItems);
-            binsAudited.add(currentActiveBin);
-            
-            if (currentActiveBin.endsWith("100")) {
-                stars++; playSFX('star');
-                showRowEndPrompt(currentActiveBin.charAt(1), getNextPhysicalBin(currentActiveBin));
+
+            // Fire and forget network call
+            const payload = { action: 'logAudit', user: document.getElementById('email-user').value || "Floor", bin: currentActiveBin, items: itemsToLog };
+            fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).catch(e => console.error(e));
+
+            // IMMEDIATE NAVIGATION
+            if(currentActiveBin.startsWith("PRODUCT:")) {
+                leaveAisle();
+                alert("Product Cycle Count Complete and Logged.");
             } else {
-                playTallySFX(verifiedCount); // Play coin sequence!
-                const next = getNextPhysicalBin(currentActiveBin);
-                if (next) selectBin(next);
+                stepBin(1); 
             }
-            saveSession(); renderAuditList(); window.scrollTo(0,0);
         }
 
-        function showRowEndPrompt(finishedRow, nextBin) {
-            const modal = document.getElementById('row-end-modal');
-            document.getElementById('row-end-text').innerText = `WORLD ${finishedRow} COMPLETE!`;
-            const nextBtn = document.getElementById('btn-next-row');
-            if (nextBin) {
-                nextBtn.onclick = () => { modal.classList.add('hidden'); selectBin(nextBin); };
-                nextBtn.classList.remove('hidden');
-            } else { nextBtn.classList.add('hidden'); }
-            modal.classList.remove('hidden');
+        function stepBin(dir) {
+            if (!currentActiveBin) return;
+            const currentIdx = ALL_SAP_BINS.indexOf(currentActiveBin);
+            if (currentIdx === -1) return;
+            const nextIdx = currentIdx + dir;
+            if (nextIdx < 0 || nextIdx >= ALL_SAP_BINS.length) return;
+            const nextBin = ALL_SAP_BINS[nextIdx];
+            const currentAisle = currentActiveBin.startsWith('W') ? currentActiveBin.charAt(1) : 'OTHER';
+            const nextAisle = nextBin.startsWith('W') ? nextBin.charAt(1) : 'OTHER';
+            
+            if (dir > 0 && currentAisle !== nextAisle && currentAisle !== 'OTHER') {
+                if (confirm(`Aisle ${currentAisle} Done! Move to ${nextAisle}?`)) selectBin(nextBin);
+                else leaveAisle();
+            } else { 
+                selectBin(nextBin); 
+            }
+        }
+
+        function selectBin(binName) {
+            if (!binName) return;
+            currentActiveBin = binName.toUpperCase();
+            document.getElementById('bin-input').value = currentActiveBin;
+            
+            // Fast Done Check
+            const alreadyDone = cloudReport.some(i => i.scanBin === currentActiveBin);
+            document.getElementById('bin-status-badge').classList.toggle('hidden', !alreadyDone);
+            
+            // Fast Index Lookup (Instant)
+            const expected = sapBinIndex[currentActiveBin] || [];
+            currentBinItems = expected.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: currentActiveBin }));
+            
+            document.getElementById('setup-screen').classList.add('hidden');
+            renderAuditList(); 
+            window.scrollTo(0,0);
         }
 
         function renderAuditList() {
-            const container = document.getElementById('audit-list');
+            const container = document.getElementById('audit-list'); 
             container.innerHTML = "";
-            if (currentBinItems.length === 0 && currentActiveBin !== "") {
-                container.innerHTML = `<div class="p-10 text-center text-white retro-font text-[8px]">BIN EMPTY IN SAP</div>`;
+            if (currentBinItems.length === 0 && currentActiveBin !== "") { 
+                container.innerHTML = `<div class="py-20 text-center text-slate-300 font-black uppercase text-xs">Empty Bin</div>`; 
+                return; 
             }
+            // Use a document fragment for faster DOM insertion
+            const fragment = document.createDocumentFragment();
             currentBinItems.forEach((item, index) => {
-                const card = document.createElement('div');
-                card.id = `card-${index}`;
-                card.className = `p-4 rounded-2xl game-card bg-white ${item.verified ? 'card-verified' : (item.isMissing ? 'card-missing' : (item.isExtra ? 'card-extra' : ''))}`;
-                card.innerHTML = `
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="flex-1">
-                            <span class="inline-block px-2 py-0.5 bg-black text-white font-mono text-[10px] rounded mb-2">HU: ${item.hu}</span>
-                            <h3 class="text-sm font-black leading-tight">${item.product}</h3>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-[8px] font-black text-slate-400 uppercase">SAP Qty</p>
-                            <p class="text-lg font-black text-slate-700">${item.isExtra ? '--' : item.sapQty}</p>
-                        </div>
+                const card = document.createElement('div'); 
+                card.className = `p-5 rounded-[2rem] shadow-sm border bg-white transition-all ${item.verified ? 'card-verified' : (item.isMissing ? 'card-missing' : (item.isExtra ? 'card-extra' : ''))}`;
+                
+                // Note: Added Location label for Cycle Count Mode visibility
+                card.innerHTML = `<div class="flex justify-between items-start mb-4"><div class="flex-1">
+                    <div class="flex gap-2 mb-2">
+                        <span class="inline-block px-3 py-1 bg-slate-900 text-blue-400 mono text-[10px] rounded-lg">HU: ${item.hu}</span>
+                        <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 mono text-[10px] rounded-lg font-black uppercase">${item.sapBin}</span>
                     </div>
-                    <div class="flex gap-2">
-                        ${!item.isExtra ? `<button onclick="quickConfirm(${index})" class="btn-3d flex-1 bg-green-500 text-white py-3 rounded-xl retro-font text-[8px]">ALL ${item.sapQty}</button>` : ''}
-                        <button onclick="toggleMissing(${index})" class="btn-3d flex-1 bg-red-500 text-white py-3 rounded-xl retro-font text-[8px]">MISSING</button>
-                    </div>`;
-                container.appendChild(card);
+                    <h3 class="text-sm font-black text-slate-800 leading-tight mb-1">${item.product}</h3><p class="text-[11px] text-slate-600 font-semibold mb-1">${item.desc}</p><p class="text-[10px] text-slate-500 font-bold uppercase">Batch: ${item.batch || 'N/A'}</p></div><div class="text-right bg-slate-50 p-2 rounded-xl border border-slate-100 min-w-[70px]"><p class="text-[7px] font-black text-slate-400 uppercase">SAP Qty</p><p class="text-lg mono font-black text-slate-700">${item.isExtra ? '--' : item.sapQty}</p></div></div><div class="flex flex-col gap-3"><div class="flex gap-2">${!item.isExtra ? `<button onclick="quickConfirm(${index})" class="flex-[3] py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg">Confirm ${item.sapQty}</button>` : ''}<button onclick="toggleMissing(${index})" class="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase border-2 ${item.isMissing ? 'bg-red-600 border-red-600 text-white shadow-lg' : 'border-slate-100 text-slate-300 bg-white'}">Missing</button></div><div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100"><button onclick="adjustQty(${index}, -1)" class="w-14 h-14 flex items-center justify-center bg-white rounded-xl shadow-sm text-2xl font-black text-slate-300">－</button><input type="number" value="${item.countQty || ''}" oninput="updateCount(${index}, this.value)" placeholder="0" class="flex-1 bg-transparent text-center font-black text-2xl text-blue-700 outline-none"><button onclick="adjustQty(${index}, 1)" class="w-14 h-14 flex items-center justify-center bg-white rounded-xl shadow-sm text-2xl font-black text-blue-600">＋</button></div></div>`;
+                fragment.appendChild(card);
             });
+            container.appendChild(fragment);
         }
 
-        function quickConfirm(idx) {
-            playSFX('coin');
-            currentBinItems[idx].countQty = currentBinItems[idx].sapQty;
-            currentBinItems[idx].verified = true;
-            currentBinItems[idx].isMissing = false;
-            saveSession(); renderAuditList();
-        }
-
-        function toggleMissing(idx) { 
-            currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; 
-            if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } 
-            saveSession(); renderAuditList(); 
-        }
-
-        // --- SETUP ---
-        function selectChar(key) {
-            playSFX('coin');
-            selectedCharacter = key;
-            document.getElementById('char-selection').classList.add('hidden');
-            document.getElementById('upload-prompt').classList.remove('hidden');
-            if(sapMasterData.length > 0) unlockAudit();
-            saveSession();
-        }
-
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const raw = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-                sapMasterData = raw.map(row => ({
-                    sapBin: String(row['Storage Bin'] || row['Storage bin'] || "").trim().toUpperCase(),
-                    hu: String(row['Handling Unit'] || row['HU'] || "").trim(),
-                    product: String(row['Product'] || ""),
-                    desc: row['Product Short Description'] || "",
-                    uom: row['Base Unit of Measure'] || "EA",
-                    sapQty: parseFloat(row['Quantity']) || 0
-                }));
-                playSFX('star'); unlockAudit(); saveSession();
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function unlockAudit() {
-            document.getElementById('upload-prompt').classList.add('hidden');
-            document.getElementById('row-selection').classList.remove('hidden');
-            const grid = document.getElementById('row-selection');
-            grid.innerHTML = "";
-            "ABCDEFGHIJKLMNOP".split("").forEach(row => {
-                const btn = document.createElement('button');
-                btn.className = "btn-3d bg-white p-4 rounded-xl retro-font text-xs";
-                btn.innerText = row;
-                btn.onclick = () => { playSFX('jump'); document.getElementById('setup-screen').classList.add('hidden'); selectBin(`W${row}00A`); };
-                grid.appendChild(btn);
-            });
-            document.getElementById('data-status').innerText = `READY: ${sapMasterData.length} HU`;
-            document.getElementById('data-status').className = "text-[6px] retro-font text-green-500 font-bold uppercase mt-1";
-        }
-
-        window.onload = () => {
-            Object.keys(chars).forEach(k => document.getElementById(`svg-${k}`).innerHTML = chars[k]);
-            if (sapMasterData.length > 0) unlockAudit();
-            if (currentActiveBin) {
-                document.getElementById('setup-screen').classList.add('hidden');
-                document.getElementById('bin-input').value = currentActiveBin;
-                loadBinData(currentActiveBin);
+        // NEW: Cycle Count Logic
+        function startProductCycle() {
+            const sku = document.getElementById('prod-cycle-input').value.trim();
+            if (!sku) return;
+            
+            const matches = sapMasterData.filter(item => item.product === sku);
+            if (matches.length === 0) {
+                alert("Product not found in SAP data.");
+                return;
             }
-            updateGameUI();
+
+            haptic();
+            currentActiveBin = "PRODUCT: " + sku;
+            document.getElementById('bin-input').value = currentActiveBin;
+            
+            // Map matches across all bins
+            currentBinItems = matches.map(i => ({ 
+                ...i, 
+                verified: false, 
+                isMissing: false, 
+                countQty: 0, 
+                isExtra: false, 
+                scannedBin: i.sapBin // Treat the SAP Bin as the location to verify
+            }));
+            
+            document.getElementById('setup-screen').classList.add('hidden');
+            renderAuditList();
+            window.scrollTo(0,0);
+        }
+
+        function quickConfirm(idx) { haptic(); currentBinItems[idx].countQty = currentBinItems[idx].sapQty; currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; renderAuditList(); }
+        function adjustQty(idx, delta) { haptic(); let c = currentBinItems[idx].countQty || 0; currentBinItems[idx].countQty = Math.max(0, c + delta); currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0); if(currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; renderAuditList(); }
+        function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val) || 0; currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0); }
+        function toggleMissing(idx) { haptic(); currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } renderAuditList(); }
+        function leaveAisle() { haptic(); currentActiveBin = ""; document.getElementById('setup-screen').classList.remove('hidden'); }
+        function clearAllData() { if (confirm("Reset?")) { localStorage.clear(); location.reload(); } }
+        function toggleAddForm() { haptic(); document.getElementById('add-item-modal').classList.toggle('hidden'); }
+        async function sendMobileMsg() { const text = document.getElementById('mobile-msg').value; const user = document.getElementById('email-user').value || "Floor"; if (!text) return; await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'sendMessage', user, text }) }); document.getElementById('mobile-msg').value = ""; syncCloud(); }
+        function initSetupGrid() { const grid = document.getElementById('row-grid'); grid.innerHTML = ""; "ABCDEFGHIJKLMNOP".split("").forEach(row => { const btn = document.createElement('button'); btn.className = "relative bg-white border-2 border-slate-100 p-5 rounded-2xl font-black text-xl active:bg-blue-600 active:text-white"; btn.innerHTML = `${row}<span id="row-badge-${row}" class="row-progress-badge">0</span>`; btn.onclick = () => { haptic(); selectBin(`W${row}00A`); }; grid.appendChild(btn); }); }
+        function updateRowProgressUI() { const finalized = new Set(cloudReport.map(i => i.scanBin)); "ABCDEFGHIJKLMNOP".split("").forEach(row => { const badge = document.getElementById(`row-badge-${row}`); if (badge) badge.innerText = Array.from(finalized).filter(b => b && b.charAt(1) === row).length; }); document.getElementById('total-progress').innerText = `${finalized.size} Bins Done`; }
+        
+        function autoLookupExtra(input) { 
+            const hu = input.value.trim(); 
+            if (hu === "0" || hu.length < 8) return; 
+            const match = sapHUIndex.get(hu); // Instant Lookup
+            if (match) { 
+                haptic(); 
+                document.getElementById('add-prod').value = match.product; 
+                document.getElementById('add-batch').value = match.batch || ""; 
+                setTimeout(() => document.getElementById('add-qty').focus(), 100); 
+            } 
+        }
+
+        function submitExtra() { 
+            const hu = document.getElementById('add-hu').value.trim(); 
+            const prod = document.getElementById('add-prod').value.trim(); 
+            const batch = document.getElementById('add-batch').value.trim(); 
+            const qty = parseFloat(document.getElementById('add-qty').value) || 0; 
+            if(!hu || qty <= 0) return; 
+            const sapMatch = sapHUIndex.get(hu); // Instant Lookup
+            currentBinItems.push({ hu, product: prod, batch, sapQty: sapMatch ? sapMatch.sapQty : 0, sapBin: sapMatch ? sapMatch.sapBin : null, scannedBin: currentActiveBin, countQty: qty, verified: true, isMissing: false, isExtra: true, desc: sapMatch ? sapMatch.desc : "PHYSICAL FIND" }); 
+            toggleAddForm(); renderAuditList(); 
+            document.getElementById('add-hu').value = ""; document.getElementById('add-prod').value = ""; document.getElementById('add-batch').value = ""; document.getElementById('add-qty').value = ""; 
+        }
+
+        function switchView(v) { document.getElementById('view-audit').classList.toggle('hidden', v !== 'audit'); document.getElementById('view-report').classList.toggle('hidden', v !== 'report'); const na = document.getElementById('nav-audit'), nr = document.getElementById('nav-report'); if(v==='audit'){ na.classList.add('nav-active'); nr.classList.remove('nav-active'); }else{ nr.classList.add('nav-active'); na.classList.remove('nav-active'); syncCloud(); } }
+
+        window.onload = () => { 
+            if (sapMasterData.length > 0) { 
+                rebuildIndexes();
+                document.getElementById('upload-prompt').classList.add('hidden'); 
+                document.getElementById('row-selection').classList.remove('hidden'); 
+                initSetupGrid(); 
+            } 
+            syncCloud(); 
+            setInterval(syncCloud, 5000); 
         };
-
-        function suggestBins(val) {
-            const container = document.getElementById('bin-suggestions');
-            container.innerHTML = "";
-            if (currentActiveBin) {
-                const bayPrefix = currentActiveBin.substring(0, 4);
-                ['A', 'B', 'C'].forEach(lvl => {
-                    const btn = document.createElement('button');
-                    btn.className = `btn-3d px-6 py-2 rounded-lg retro-font text-[8px] ${currentActiveBin.endsWith(lvl) && !currentActiveBin.endsWith("100") ? 'bg-yellow-400' : 'bg-white'}`;
-                    btn.innerText = lvl;
-                    btn.onclick = () => { playSFX('jump'); selectBin(bayPrefix + lvl); };
-                    container.appendChild(btn);
-                });
-            }
-        }
-        function toggleAddForm() { document.getElementById('add-item-modal').classList.toggle('hidden'); }
-        function switchView(view) {
-            document.getElementById('view-audit').classList.toggle('hidden', view !== 'audit');
-            document.getElementById('view-report').classList.toggle('hidden', view !== 'report');
-            document.getElementById('nav-audit').classList.toggle('nav-active', view === 'audit');
-            document.getElementById('nav-report').classList.toggle('nav-active', view === 'report');
-        }
-        function clearAllData() { if (confirm("⚠️ RESET GAME? All progress will be lost!")) { localStorage.clear(); location.reload(); } }
-        function sendEmailReport() {
-            const user = document.getElementById('email-user').value.trim();
-            if (!user) return alert("Enter user");
-            window.location.href = `mailto:${user}@novusfoods.com?subject=Audit Score&body=Stars: ${stars}`;
-        }
-        function autoLookupExtra(input) {
-            if (input.value.length >= 8) {
-                const match = sapMasterData.find(i => i.hu === input.value);
-                if (match) { document.getElementById('add-prod').value = match.product; playSFX('coin'); }
-            }
-        }
     </script>
 </body>
 </html>

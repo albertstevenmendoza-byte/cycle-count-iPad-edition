@@ -49,11 +49,11 @@
                 <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer">Select Excel File</label>
             </div>
             <div id="row-selection" class="hidden space-y-6">
-                <!-- Product Cycle Count -->
+                <!-- Cycle Count Product Section -->
                 <div class="bg-white p-4 rounded-3xl border shadow-sm">
                     <p class="text-[10px] font-black uppercase text-slate-400 mb-2">Product Cycle Count</p>
                     <div class="flex gap-2">
-                        <input type="text" id="prod-cycle-input" placeholder="Enter Product ID (e.g. 4408551)" class="flex-1 p-3 bg-slate-50 border rounded-xl mono text-sm outline-none">
+                        <input type="text" id="prod-cycle-input" placeholder="Item # (e.g. 4408551)" class="flex-1 p-3 bg-slate-50 border rounded-xl mono text-sm outline-none">
                         <button onclick="startProductCycle()" class="bg-orange-500 text-white px-4 rounded-xl font-black text-[10px] uppercase">Search</button>
                     </div>
                 </div>
@@ -119,6 +119,9 @@
         let sapBinIndex = {}; 
         let sapHUIndex = new Map();
         let auditLog = []; let currentBinItems = []; let currentActiveBin = ""; let lastMsgTime = 0; let cloudReport = [];
+        
+        // Tracking for cycle count expanded state
+        let expandedBins = new Set();
 
         function haptic() { if (window.navigator.vibrate) window.navigator.vibrate(40); }
 
@@ -185,8 +188,12 @@
             const payload = { action: 'logAudit', user: document.getElementById('email-user').value || "Floor", bin: currentActiveBin, items: itemsToLog };
             fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }).catch(e => console.error(e));
             
-            if(currentActiveBin.startsWith("PRODUCT:")) { leaveAisle(); alert("Cycle Count Logged"); } 
-            else { stepBin(1); }
+            if(currentActiveBin.startsWith("PRODUCT:")) { 
+                leaveAisle(); 
+                alert("Product Cycle Count Finalized."); 
+            } else { 
+                stepBin(1); 
+            }
         }
 
         function stepBin(dir) {
@@ -221,18 +228,20 @@
             const sku = document.getElementById('prod-cycle-input').value.trim();
             if (!sku) return;
             const matches = sapMasterData.filter(item => item.product === sku);
-            if (matches.length === 0) { alert("Product not found"); return; }
+            if (matches.length === 0) { alert("Product Not Found"); return; }
             haptic();
             currentActiveBin = "PRODUCT: " + sku;
             document.getElementById('bin-input').value = currentActiveBin;
+            expandedBins.clear();
             currentBinItems = matches.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: i.sapBin }));
             document.getElementById('setup-screen').classList.add('hidden');
             renderAuditList();
         }
 
-        function toggleBinAccordion(id) {
-            const el = document.getElementById('bin-group-' + id);
-            el.classList.toggle('hidden');
+        function toggleBinAccordion(bin) {
+            if (expandedBins.has(bin)) expandedBins.delete(bin);
+            else expandedBins.add(bin);
+            renderAuditList();
         }
 
         function renderAuditList() {
@@ -251,30 +260,24 @@
                 });
 
                 Object.keys(groups).forEach(bin => {
-                    const binTotal = groups[bin].reduce((sum, obj) => sum + obj.item.sapQty, 0);
-                    const binVerifiedCount = groups[bin].filter(obj => obj.item.verified || obj.item.isMissing).length;
+                    const count = groups[bin].length;
+                    const isExpanded = expandedBins.has(bin);
                     
-                    const groupContainer = document.createElement('div');
-                    groupContainer.className = "mb-2 bg-white rounded-3xl border overflow-hidden";
-                    
-                    groupContainer.innerHTML = `
-                        <div onclick="toggleBinAccordion('${bin}')" class="p-4 flex justify-between items-center cursor-pointer bg-slate-50 border-b">
-                            <div>
-                                <span class="text-[10px] font-black text-blue-600 uppercase block">Storage Bin</span>
-                                <span class="mono font-black text-lg">${bin}</span>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-[10px] font-black text-slate-400 block uppercase">Total Qty</span>
-                                <span class="font-black text-slate-700">${binTotal}</span>
-                                ${binVerifiedCount === groups[bin].length ? '<span class="ml-2 text-emerald-500">✓</span>' : ''}
-                            </div>
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = "bg-white border-2 border-slate-100 rounded-3xl overflow-hidden mb-2";
+                    groupDiv.innerHTML = `
+                        <div onclick="toggleBinAccordion('${bin}')" class="flex justify-between items-center p-5 active:bg-slate-50 cursor-pointer">
+                            <span class="mono font-black text-slate-800 tracking-tighter">/ ${bin}</span>
+                            <span class="text-[10px] font-black uppercase text-blue-600 bg-blue-50 px-3 py-1 rounded-lg">${count} Instances</span>
                         </div>
-                        <div id="bin-group-${bin}" class="hidden p-4 space-y-4 bg-white"></div>
+                        <div id="content-${bin}" class="${isExpanded ? 'p-4 space-y-4 border-t-2 border-slate-50' : 'hidden'}"></div>
                     `;
                     
-                    const listArea = groupContainer.querySelector('#bin-group-' + bin);
-                    groups[bin].forEach(obj => listArea.appendChild(createItemCard(obj.item, obj.idx)));
-                    container.appendChild(groupContainer);
+                    if (isExpanded) {
+                        const content = groupDiv.querySelector(`#content-${bin}`);
+                        groups[bin].forEach(obj => content.appendChild(createItemCard(obj.item, obj.idx)));
+                    }
+                    container.appendChild(groupDiv);
                 });
             } else {
                 currentBinItems.forEach((item, index) => {
@@ -294,7 +297,7 @@
         function adjustQty(idx, delta) { haptic(); let c = currentBinItems[idx].countQty || 0; currentBinItems[idx].countQty = Math.max(0, c + delta); currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0); if(currentBinItems[idx].verified) currentBinItems[idx].isMissing = false; renderAuditList(); }
         function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val) || 0; currentBinItems[idx].verified = (currentBinItems[idx].countQty > 0); }
         function toggleMissing(idx) { haptic(); currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } renderAuditList(); }
-        function leaveAisle() { haptic(); currentActiveBin = ""; document.getElementById('setup-screen').classList.remove('hidden'); }
+        function leaveAisle() { haptic(); currentActiveBin = ""; expandedBins.clear(); document.getElementById('setup-screen').classList.remove('hidden'); }
         function clearAllData() { if (confirm("Reset?")) { localStorage.clear(); location.reload(); } }
         function toggleAddForm() { haptic(); document.getElementById('add-item-modal').classList.toggle('hidden'); }
         async function sendMobileMsg() { const text = document.getElementById('mobile-msg').value; const user = document.getElementById('email-user').value || "Floor"; if (!text) return; await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'sendMessage', user, text }) }); document.getElementById('mobile-msg').value = ""; syncCloud(); }

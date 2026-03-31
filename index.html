@@ -37,9 +37,9 @@
     <main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
         <div id="setup-screen" class="absolute inset-0 bg-slate-50 z-[60] flex flex-col p-6 overflow-y-auto">
             <div id="upload-prompt" class="flex-1 flex flex-col items-center justify-center text-center">
-                <h2 class="text-3xl font-black uppercase mb-2 text-slate-800">Upload Data</h2>
+                <h2 class="text-3xl font-black uppercase mb-2">Upload Data</h2>
                 <input type="file" id="sap-upload-main" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-                <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer active:scale-95 transition-transform">Select Excel File</label>
+                <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer">Select Excel File</label>
             </div>
             
             <div id="row-selection" class="hidden space-y-6">
@@ -49,7 +49,7 @@
                         <span id="week-display" class="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Week ?</span>
                         <span id="day-display" class="text-[10px] font-black uppercase opacity-60">Monday</span>
                     </div>
-                    <p class="text-[10px] font-black uppercase text-blue-400 mb-2 tracking-widest">Today's Cycle Count</p>
+                    <p class="text-[10px] font-black uppercase text-blue-400 mb-2 tracking-widest">Today's Targets</p>
                     <div id="schedule-list" class="text-xs font-bold space-y-2 opacity-90 mb-2"></div>
                 </div>
 
@@ -58,11 +58,11 @@
                     <p class="text-[10px] font-black uppercase text-slate-400 mb-2 ml-2">Single Product Count</p>
                     <div class="flex gap-2">
                         <input type="text" id="prod-cycle-input" placeholder="Enter Product #" class="flex-1 p-4 bg-slate-50 border-2 rounded-2xl mono text-sm outline-none focus:border-blue-500 transition-all">
-                        <button onclick="startProductCycle()" class="bg-orange-500 text-white px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all">Search</button>
+                        <button onclick="startProductCycle()" class="bg-orange-500 text-white px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg">Search</button>
                     </div>
                 </div>
 
-                <div class="flex justify-between items-end"><h2 class="text-2xl font-black uppercase text-slate-800">Select Row</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Bins Done</span></div>
+                <div class="flex justify-between items-end"><h2 class="text-2xl font-black uppercase">Select Row</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Bins Done</span></div>
                 <div class="grid grid-cols-4 gap-4" id="row-grid"></div>
             </div>
         </div>
@@ -88,12 +88,8 @@
         </div>
     </main>
 
-    <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden">
-        <div id="report-body" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
-    </main>
-
     <div id="add-item-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] p-4 flex items-center justify-center">
-        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 space-y-5 shadow-2xl">
+        <div class="bg-white w-full max-sm rounded-[2.5rem] p-8 space-y-5 shadow-2xl">
             <h2 class="text-2xl font-black uppercase">Physical Find</h2>
             <div class="space-y-4">
                 <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-4 bg-slate-50 border-2 rounded-2xl mono font-bold outline-none">
@@ -207,7 +203,7 @@
                         <p class="text-[11px] text-slate-600 font-semibold">${item.desc}</p>
                     </div>
                     <div class="text-right bg-slate-50 p-2 rounded-xl border min-w-[70px]">
-                        <p class="text-[7px] font-black text-slate-400 uppercase">SAP Qty</p>
+                        <p class="text-[7px] font-black text-slate-400 uppercase">SAP QTY</p>
                         <p class="text-lg mono font-black text-slate-700">${item.sapQty}</p>
                     </div>
                 </div>
@@ -216,7 +212,6 @@
                         <button onclick="quickConfirm(${index})" class="flex-[3] py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase shadow-lg active:scale-95 transition-all">Confirm ${item.sapQty}</button>
                         <button onclick="toggleMissing(${index})" class="flex-1 py-4 rounded-2xl font-black text-[10px] uppercase border-2 ${item.isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-100 text-slate-300 bg-white'}">Missing</button>
                     </div>
-                    <!-- Manual Adjustment Controls Restored -->
                     <div class="flex items-center gap-2 bg-slate-50 p-1.5 rounded-2xl border border-slate-100">
                         <button onclick="adjustQty(${index}, -1)" class="w-14 h-14 flex items-center justify-center bg-white rounded-xl shadow-sm text-2xl font-black text-slate-300 active:bg-slate-100">－</button>
                         <input type="number" value="${item.countQty || ''}" oninput="updateCount(${index}, this.value)" placeholder="0" class="flex-1 bg-transparent text-center font-black text-2xl text-blue-700 outline-none">

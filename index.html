@@ -49,7 +49,7 @@
                 <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer">Select Excel File</label>
             </div>
             <div id="row-selection" class="hidden space-y-6">
-                <!-- Cycle Count Schedule Box -->
+                <!-- Schedule Information Box -->
                 <div class="bg-slate-900 text-white p-5 rounded-[2rem] shadow-xl">
                     <div class="flex justify-between items-center mb-3">
                         <span id="current-week-display" class="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase">Week 1</span>
@@ -95,7 +95,6 @@
         </div>
     </main>
 
-    <!-- ... (Report View and Add Item Modal remain unchanged) ... -->
     <main id="view-report" class="hidden flex-1 flex flex-col overflow-hidden">
         <div id="report-body" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
         <div class="bg-white p-5 border-t shrink-0">
@@ -121,7 +120,7 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
+        const API_URL = "YOUR_APPS_SCRIPT_URL_HERE";
         const ALL_SAP_BINS = ["B101","B102","B103","B104","B105","B106","B107","B108","B109","B110","B111","B112","B113","B114","CLARIFICATION","C_TRUCK","FA01A","FA01B","FA02A","FA02B","FA03A","FA03B","FA04A","FA04B","FA05A","FA05B","FA06A","FA06B","FA07A","FA07B","FA08A","FA08B","FB01A","FB01B","FB02A","FB02B","FB03A","FB03B","FB04A","FB04B","FB05A","FB05B","FB06A","FB06B","FB07A","FB07B","FB08A","FB08B","FC01A","FC01B","FC02A","FC02B","FC03A","FC03B","FC04A","FC04B","FC05A","FC05B","FC06A","FC06B","FC07A","FC07B","FB08A","FB08B","FD01A","FD01B","FD02A","FD02B","FD03A","FD03B","FD04A","FD04B","FD05A","FD05B","FD06A","FD06B","FD07A","FD07B","FD08A","FD08B","FD09A","FD09B","FD10A","FD10B","GR-PRODUCTION","GR-ZONE","GR-ZONE-SMALLPARC","KITS-FLOOR","MIXAREA1_HU_FIX","MIXAREA2_HU_FIX","PACKRM1_NHU","PACKRM2_NHU","PACKRM2_HU_FIX","PKG_RETURN","PRFL-01-02","PRFL-01-04","PSA-INTERMEDIATE","RECV-HOLD","RECV01","RECV02","RECV03","RECV04","RETURN-BLND-FLOOR","SIG-INSIDE-01","SIG-INSIDE-02","STG01","STG02","STG03","STG04","STG05","STG06","STG07","STG08","STG09","STG10","STG11","STG12","STG13","STG14","STG_RTN","VIRTUAL_BIN","VIRTUAL_FLUID_LOAD","VIRTUAL_RET_BIN"];
         const aisleConfigs = {A:36, B:38, C:38, D:38, E:38, F:38, G:38, H:38, J:37, K:12, L:34, M:35, N:24, P:6};
         Object.keys(aisleConfigs).forEach(char => { for(let i=0; i<=aisleConfigs[char]; i++){ const bay = i.toString().padStart(2,'0'); ALL_SAP_BINS.push(`W${char}${bay}A`,`W${char}${bay}B`,`W${char}${bay}C`); } ALL_SAP_BINS.push(`W${char}100`); });
@@ -132,7 +131,7 @@
         let sapBinIndex = {}; 
         let sapHUIndex = new Map();
         let expandedBins = new Set();
-        let reportData = []; let currentBinItems = []; let currentActiveBin = ""; let lastMsgTime = 0; let cloudReport = [];
+        let currentBinItems = []; let currentActiveBin = ""; let lastMsgTime = 0; let cloudReport = [];
 
         function getScheduleContext() {
             const now = new Date();
@@ -140,7 +139,8 @@
             const msInWeek = 7 * 24 * 60 * 60 * 1000;
             const weeksSinceStart = Math.floor((now - startRef) / msInWeek);
             let weekNo = ((weeksSinceStart % 4) + 4) % 4 + 1;
-            return { week: weekNo, day: now.getDay(), dayName: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()] };
+            const dayNo = now.getDay();
+            return { week: weekNo, day: dayNo, dayName: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][dayNo] };
         }
 
         function getTodaysSchedule() {
@@ -176,7 +176,6 @@
                     batch: String(row['Batch'] || row['Batch Number'] || row['Charg'] || "").trim(),
                     desc: row['Product Short Description'] || row['Product short description'] || row['Description'] || "",
                     sapQty: parseFloat(row['Quantity']) || 0,
-                    // Extra metadata for merge
                     unit: row['Unit'] || row['Base Unit of Measure'] || "",
                     stockType: row['Stock Type'] || "",
                     grDate: row['Goods Receipt Date'] || "",
@@ -193,14 +192,16 @@
             if(!currentActiveBin) return;
             haptic();
             if (currentBinItems.some(i => !i.verified && !i.isMissing)) { alert("Finish bin first."); return; }
-            let itemsToLog = currentBinItems.length === 0 ? [{ hu: "EMPTY_BIN", product: "NONE", desc: "Confirmed Empty", batch: "", sapBin: "", scannedBin: currentActiveBin, sapQty: 0, countQty: 0, type: 'ok' }] : currentBinItems.map(i => {
+            let itemsToLog = currentBinItems.map(i => {
                 let type = 'ok';
                 if (i.isMissing) type = 'miss';
-                else if (i.isExtra && (!sapHUIndex.has(i.hu) || i.hu === "0")) type = 'inactive';
+                else if (i.isExtra && !sapHUIndex.has(i.hu)) type = 'inactive';
                 else if (i.sapBin && i.scannedBin !== i.sapBin) type = 'move';
                 else if (i.countQty !== i.sapQty) type = 'adj';
                 return { 
-                    hu: i.hu, product: i.product, desc: i.desc, batch: i.batch, sapBin: i.sapBin, scannedBin: i.scannedBin, sapQty: i.sapQty, countQty: i.countQty, type: type,
+                    hu: i.hu, product: i.product, desc: i.desc, batch: i.batch, 
+                    sapBin: i.sapBin, scannedBin: i.scannedBin, sapQty: i.sapQty, 
+                    countQty: i.countQty, type: type,
                     unit: i.unit || "", stockType: i.stockType || "", grDate: i.grDate || "", sled: i.sled || ""
                 };
             });
@@ -212,7 +213,7 @@
             const sku = document.getElementById('prod-cycle-input').value.trim();
             if (!sku) return;
             const matches = sapMasterData.filter(item => item.product === sku);
-            if (matches.length === 0) { alert("Not found"); return; }
+            if (matches.length === 0) { alert("Product not found"); return; }
             haptic(); currentActiveBin = "PRODUCT: " + sku; expandedBins.clear();
             currentBinItems = matches.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0, isExtra: false, scannedBin: i.sapBin }));
             document.getElementById('setup-screen').classList.add('hidden'); renderAuditList();

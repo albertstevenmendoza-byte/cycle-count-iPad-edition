@@ -37,32 +37,30 @@
     <main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
         <div id="setup-screen" class="absolute inset-0 bg-slate-50 z-[60] flex flex-col p-6 overflow-y-auto">
             <div id="upload-prompt" class="flex-1 flex flex-col items-center justify-center text-center">
-                <h2 class="text-3xl font-black uppercase mb-2">Upload Data</h2>
+                <h2 class="text-3xl font-black uppercase mb-2 text-slate-800">Upload Data</h2>
                 <input type="file" id="sap-upload-main" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleFileUpload(event)">
-                <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer">Select Excel File</label>
+                <label for="sap-upload-main" class="bg-blue-600 text-white py-6 px-12 rounded-3xl font-black uppercase text-sm shadow-xl cursor-pointer active:scale-95 transition-transform">Select Excel File</label>
             </div>
             
             <div id="row-selection" class="hidden space-y-6">
-                <!-- Schedule Box -->
                 <div class="bg-slate-900 text-white p-5 rounded-[2.5rem] shadow-xl">
                     <div class="flex justify-between items-center mb-3">
                         <span id="week-display" class="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Week ?</span>
                         <span id="day-display" class="text-[10px] font-black uppercase opacity-60">Monday</span>
                     </div>
-                    <p class="text-[10px] font-black uppercase text-blue-400 mb-2 tracking-widest">Today's Targets</p>
+                    <p class="text-[10px] font-black uppercase text-blue-400 mb-2 tracking-widest">Today's Cycle Count</p>
                     <div id="schedule-list" class="text-xs font-bold space-y-2 opacity-90 mb-2"></div>
                 </div>
 
-                <!-- Single Product Search -->
                 <div class="bg-white p-4 rounded-[2rem] border shadow-sm">
                     <p class="text-[10px] font-black uppercase text-slate-400 mb-2 ml-2">Single Product Count</p>
                     <div class="flex gap-2">
                         <input type="text" id="prod-cycle-input" placeholder="Enter Product #" class="flex-1 p-4 bg-slate-50 border-2 rounded-2xl mono text-sm outline-none focus:border-blue-500 transition-all">
-                        <button onclick="startProductCycle()" class="bg-orange-500 text-white px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg">Search</button>
+                        <button onclick="startProductCycle()" class="bg-orange-500 text-white px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg active:scale-95 transition-all">Search</button>
                     </div>
                 </div>
 
-                <div class="flex justify-between items-end"><h2 class="text-2xl font-black uppercase">Select Row</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Bins Done</span></div>
+                <div class="flex justify-between items-end"><h2 class="text-2xl font-black uppercase text-slate-800">Select Row</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Bins Done</span></div>
                 <div class="grid grid-cols-4 gap-4" id="row-grid"></div>
             </div>
         </div>
@@ -89,11 +87,14 @@
     </main>
 
     <div id="add-item-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] p-4 flex items-center justify-center">
-        <div class="bg-white w-full max-sm rounded-[2.5rem] p-8 space-y-5 shadow-2xl">
-            <h2 class="text-2xl font-black uppercase">Physical Find</h2>
+        <div class="bg-white w-full max-w-sm rounded-[2.5rem] p-8 space-y-5 shadow-2xl">
+            <div class="flex justify-between items-center"><h2 class="text-2xl font-black uppercase">Physical Find</h2><span id="smart-fill-badge" class="hidden bg-green-100 text-green-600 text-[8px] font-black px-2 py-1 rounded-full animate-pulse uppercase">Smart Filled</span></div>
             <div class="space-y-4">
-                <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-4 bg-slate-50 border-2 rounded-2xl mono font-bold outline-none">
-                <input type="text" id="add-prod" placeholder="Item #" class="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                <input type="text" id="add-hu" placeholder="HU Number" class="w-full p-4 bg-slate-50 border-2 rounded-2xl mono font-bold outline-none focus:border-blue-500" oninput="autoLookupExtra(this)">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="text" id="add-prod" placeholder="Item #" class="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                    <input type="text" id="add-batch" placeholder="Batch" class="w-full p-4 bg-slate-50 border-2 rounded-2xl outline-none">
+                </div>
                 <input type="number" id="add-qty" placeholder="Count" class="w-full p-6 bg-blue-50 rounded-2xl font-black text-center text-3xl text-blue-700 outline-none">
             </div>
             <div class="flex gap-3 pt-4"><button onclick="toggleAddForm()" class="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancel</button><button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-4 rounded-2xl font-black uppercase shadow-lg">Confirm Add</button></div>
@@ -221,11 +222,42 @@
             return card;
         }
 
+        function autoLookupExtra(input) {
+            const hu = input.value.trim();
+            if (hu.length < 8) return;
+            const match = sapHUIndex.get(hu);
+            if (match) {
+                haptic();
+                document.getElementById('smart-fill-badge').classList.remove('hidden');
+                document.getElementById('add-prod').value = match.product;
+                document.getElementById('add-batch').value = match.batch || "";
+                document.getElementById('add-qty').focus();
+            }
+        }
+
+        function submitExtra() {
+            const hu = document.getElementById('add-hu').value.trim();
+            const prod = document.getElementById('add-prod').value.trim();
+            const batch = document.getElementById('add-batch').value.trim();
+            const qty = parseFloat(document.getElementById('add-qty').value) || 0;
+            if(!hu || qty <= 0) return;
+            const match = sapHUIndex.get(hu) || {};
+            currentBinItems.push({
+                hu, product: prod, batch, desc: match.desc || "PHYSICAL FIND",
+                sapQty: match.sapQty || 0, sapBin: match.sapBin || null,
+                unit: match.unit || "", stockType: match.stockType || "",
+                grDate: match.grDate || "", sled: match.sled || "",
+                countQty: qty, verified: true, isMissing: false, isExtra: true
+            });
+            toggleAddForm(); renderAuditList();
+            document.getElementById('add-hu').value = ""; document.getElementById('add-prod').value = ""; document.getElementById('add-batch').value = ""; document.getElementById('add-qty').value = "";
+            document.getElementById('smart-fill-badge').classList.add('hidden');
+        }
+
         function adjustQty(idx, delta) { haptic(); let c = currentBinItems[idx].countQty || 0; currentBinItems[idx].countQty = Math.max(0, c + delta); currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; renderAuditList(); }
         function updateCount(idx, val) { currentBinItems[idx].countQty = parseFloat(val) || 0; currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; }
         function quickConfirm(idx) { haptic(); currentBinItems[idx].countQty = currentBinItems[idx].sapQty; currentBinItems[idx].verified = true; currentBinItems[idx].isMissing = false; renderAuditList(); }
         function toggleMissing(idx) { haptic(); currentBinItems[idx].isMissing = !currentBinItems[idx].isMissing; if (currentBinItems[idx].isMissing) { currentBinItems[idx].verified = false; currentBinItems[idx].countQty = 0; } renderAuditList(); }
-        
         function startProductCycle() {
             const sku = document.getElementById('prod-cycle-input').value.trim();
             const matches = sapMasterData.filter(item => item.product === sku);
@@ -234,7 +266,6 @@
             currentBinItems = matches.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0 }));
             document.getElementById('setup-screen').classList.add('hidden'); renderAuditList();
         }
-
         function startFreshCycle() {
             const matches = sapMasterData.filter(item => FRESH_SKUS.includes(item.product));
             if (matches.length === 0) return alert("No Fresh items found in file.");
@@ -242,7 +273,6 @@
             currentBinItems = matches.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0 }));
             document.getElementById('setup-screen').classList.add('hidden'); renderAuditList();
         }
-
         function toggleBinAccordion(bin) { if (expandedBins.has(bin)) expandedBins.delete(bin); else expandedBins.add(bin); renderAuditList(); }
         function leaveAisle() { currentActiveBin = ""; expandedBins.clear(); document.getElementById('setup-screen').classList.remove('hidden'); }
         function selectBin(binName) { if (!binName) return; currentActiveBin = binName.toUpperCase(); document.getElementById('bin-input').value = currentActiveBin; const expected = sapBinIndex[currentActiveBin] || []; currentBinItems = expected.map(i => ({ ...i, verified: false, isMissing: false, countQty: 0 })); document.getElementById('setup-screen').classList.add('hidden'); renderAuditList(); window.scrollTo(0,0); }
@@ -251,7 +281,6 @@
         function rebuildIndexes() { sapBinIndex = {}; sapHUIndex = new Map(); sapMasterData.forEach(item => { if (!sapBinIndex[item.sapBin]) sapBinIndex[item.sapBin] = []; sapBinIndex[item.sapBin].push(item); sapHUIndex.set(item.hu, item); }); }
         function clearAllData() { if (confirm("Reset everything?")) { localStorage.clear(); location.reload(); } }
         function switchView(v) { document.getElementById('view-audit').classList.toggle('hidden', v !== 'audit'); document.getElementById('view-report').classList.toggle('hidden', v !== 'report'); }
-
         function initSetupGrid() { 
             const grid = document.getElementById('row-grid'); grid.innerHTML = ""; 
             const ctx = getScheduleContext(); const sched = getTodaysSchedule();
@@ -260,7 +289,6 @@
             document.getElementById('schedule-list').innerHTML = `<div class="mb-2 pb-2 border-b border-white/10"><span class="text-orange-400 font-black tracking-widest">⭐ DAILY:</span> Finished Goods</div>` + sched.map(s => s.isFresh ? `<button onclick="startFreshCycle()" class="w-full text-left py-3 px-4 bg-blue-600 rounded-2xl mb-1 flex justify-between items-center text-white shadow-lg active:scale-95 transition-all font-bold tracking-tight">• ${s.aisle}: ${s.desc} <span>▶</span></button>` : `<div class="py-1.5 px-2">• <span class="text-blue-400 font-black">${s.aisle}:</span> ${s.desc}</div>`).join('');
             "ABCDEFGHIJKLMNOP".split("").forEach(row => { const btn = document.createElement('button'); btn.className = `bg-white border-2 p-5 rounded-2xl font-black text-xl border-slate-100 active:bg-blue-600 active:text-white transition-all shadow-sm`; btn.innerHTML = row; btn.onclick = () => selectBin(`W${row}00A`); grid.appendChild(btn); }); 
         }
-
         window.onload = () => { if (sapMasterData.length > 0) { rebuildIndexes(); document.getElementById('upload-prompt').classList.add('hidden'); document.getElementById('row-selection').classList.remove('hidden'); initSetupGrid(); } };
     </script>
 </body>

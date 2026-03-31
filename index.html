@@ -77,7 +77,7 @@
     </main>
 
     <script>
-        const API_URL = "YOUR_APPS_SCRIPT_URL";
+        const API_URL = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
         const ALL_SAP_BINS = ["B101","B102","B103","B104","B105","B106","B107","B108","B109","B110","B111","B112","B113","B114","CLARIFICATION","C_TRUCK","FA01A","FA01B","FA02A","FA02B","FA03A","FA03B","FA04A","FA04B","FA05A","FA05B","FA06A","FA06B","FA07A","FA07B","FA08A","FA08B","FB01A","FB01B","FB02A","FB02B","FB03A","FB03B","FB04A","FB04B","FB05A","FB05B","FB06A","FB06B","FB07A","FB07B","FB08A","FB08B","FC01A","FC01B","FC02A","FC02B","FC03A","FC03B","FC04A","FC04B","FC05A","FC05B","FC06A","FC06B","FC07A","FC07B","FB08A","FB08B","FD01A","FD01B","FD02A","FD02B","FD03A","FD03B","FD04A","FD04B","FD05A","FD05B","FD06A","FD06B","FD07A","FD07B","FD08A","FD08B","FD09A","FD09B","FD10A","FD10B","GR-PRODUCTION","GR-ZONE","GR-ZONE-SMALLPARC","KITS-FLOOR","MIXAREA1_HU_FIX","MIXAREA2_HU_FIX","PACKRM1_NHU","PACKRM2_NHU","PACKRM2_HU_FIX","PKG_RETURN","PRFL-01-02","PRFL-01-04","PSA-INTERMEDIATE","RECV-HOLD","RECV01","RECV02","RECV03","RECV04","RETURN-BLND-FLOOR","SIG-INSIDE-01","SIG-INSIDE-02","STG01","STG02","STG03","STG04","STG05","STG06","STG07","STG08","STG09","STG10","STG11","STG12","STG13","STG14","STG_RTN","VIRTUAL_BIN","VIRTUAL_FLUID_LOAD","VIRTUAL_RET_BIN"];
         const aisleConfigs = {A:36, B:38, C:38, D:38, E:38, F:38, G:38, H:38, J:37, K:12, L:34, M:35, N:24, P:6};
         Object.keys(aisleConfigs).forEach(char => { for(let i=0; i<=aisleConfigs[char]; i++){ const bay = i.toString().padStart(2,'0'); ALL_SAP_BINS.push(`W${char}${bay}A`,`W${char}${bay}B`,`W${char}${bay}C`); } ALL_SAP_BINS.push(`W${char}100`); });
@@ -92,7 +92,8 @@
         function getScheduleContext() {
             const now = new Date();
             const startRef = new Date("2026-03-30T00:00:00");
-            const weeksSinceStart = Math.floor((now - startRef) / (7 * 24 * 60 * 60 * 1000));
+            const msInWeek = 7 * 24 * 60 * 60 * 1000;
+            const weeksSinceStart = Math.floor((now - startRef) / msInWeek);
             return { week: ((weeksSinceStart % 4) + 4) % 4 + 1, day: now.getDay(), dayName: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][now.getDay()] };
         }
 

@@ -231,7 +231,7 @@ function isResolved(i) { if(!i.verified)return false; const v=String(i.verified)
 function itemKey(i) { return `${i.hu}|${i.scanBin}`; }
 
 // ===== MAP =====
-function initMap() { const c=document.getElementById('map-container'); "ABCDEFGHIJKLMNOP".split("").forEach(r=>{const d=document.createElement('div');d.id=`row-box-${r}`;d.className="row-box";d.innerHTML=`<div class="row-label">${r}</div><div id="fill-${r}" class="row-fill" style="height:0%"></div>`;d.onclick=()=>{document.getElementById('search-input').value=`W${r}`;renderReport();};c.appendChild(d);}); }
+function initMap() { const c=document.getElementById('map-container'); "ABCDEFGHJKLMNP".split("").forEach(r=>{const d=document.createElement('div');d.id=`row-box-${r}`;d.className="row-box";d.innerHTML=`<div class="row-label">${r}</div><div id="fill-${r}" class="row-fill" style="height:0%"></div>`;d.onclick=()=>{document.getElementById('search-input').value=`W${r}`;renderReport();};c.appendChild(d);}); }
 
 // ===== FETCH =====
 async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
@@ -273,7 +273,7 @@ function closeDetailPanel() { document.getElementById('detail-panel').classList.
 // ===== STATS =====
 function updateStats() {
     const binsFinalized = new Set(reportData.map(i=>i.scanBin)); let totalDone=0;
-    "ABCDEFGHIJKLMNOP".split("").forEach(r=>{const rc=Array.from(binsFinalized).filter(b=>b&&b.charAt(1)===r).length;const p=Math.min(100,Math.round((rc/(AISLE_COUNTS[r]||1))*100));const f=document.getElementById(`fill-${r}`);if(f)f.style.height=p+"%";totalDone+=rc;});
+    "ABCDEFGHJKLMNP".split("").forEach(r=>{const rc=Array.from(binsFinalized).filter(b=>b&&b.charAt(1)===r).length;const p=Math.min(100,Math.round((rc/(AISLE_COUNTS[r]||1))*100));const f=document.getElementById(`fill-${r}`);if(f)f.style.height=p+"%";totalDone+=rc;});
     document.getElementById('global-progress').innerText=Math.round((totalDone/TOTAL_AISLE_BINS)*100)+"%";
     document.getElementById('global-progress-detail').innerText=`${totalDone} / ${TOTAL_AISLE_BINS} bins`;
     const items=reportData.filter(i=>i.hu&&i.hu!=="EMPTY_BIN"); if(!items.length)return;

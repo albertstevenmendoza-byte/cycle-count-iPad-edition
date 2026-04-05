@@ -418,7 +418,7 @@ function renderReport() {
                                 <span class="font-black text-slate-400">Floor</span>
                                 <span class="mono font-bold">${floorQty}</span>
                             </div>
-                            <span class="text-[9px] font-black ${varianceColor}">${variance === 0 ? 'Match ✓' : (variance > 0 ? '+' : '') + variance + ' (Improper consumption?)'}</span>
+                            <span class="text-[9px] font-black ${varianceColor}">${variance === 0 ? 'Match ✓' : (variance > 0 ? '+' + variance + ' (Extra found on floor)' : variance + ' (Incorrectly consumed in system)')}</span>
                         </div>
                     ` : '<span class="text-[10px] text-slate-300 italic">Not yet counted</span>'}
                 </td>

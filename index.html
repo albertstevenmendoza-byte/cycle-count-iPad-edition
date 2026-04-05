@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -66,7 +65,6 @@
 <body class="h-screen flex flex-col overflow-hidden">
 
 <!-- Header -->
-
 <header class="bg-slate-900 text-white p-4 flex justify-between items-center shadow-lg shrink-0">
     <div class="flex items-center gap-4">
         <div class="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center text-xl">📊</div>
@@ -80,7 +78,6 @@
 </header>
 
 <!-- Metrics Bar -->
-
 <div class="bg-white border-b p-4 shrink-0">
     <div class="flex gap-3 items-start flex-wrap">
         <div class="flex items-center gap-2">
@@ -98,12 +95,12 @@
         <div class="metric-card border-l-4 border-l-slate-400 min-w-[100px]"><p class="text-[8px] font-black text-slate-400 uppercase">Progress</p><p id="global-progress" class="text-xl font-black text-slate-800 mono leading-none mt-1">0%</p><p id="global-progress-detail" class="text-[8px] font-bold text-slate-400 mt-0.5">0 / 0 bins</p></div>
         <div class="metric-card border-l-4 border-l-orange-400 min-w-[100px]"><p class="text-[8px] font-black text-slate-400 uppercase">Open Actions</p><p id="open-actions" class="text-xl font-black text-orange-600 mono leading-none mt-1">0</p></div>
         <div class="metric-card border-l-4 border-l-cyan-400 min-w-[100px]"><p class="text-[8px] font-black text-slate-400 uppercase">Photos</p><p id="photo-count" class="text-xl font-black text-cyan-600 mono leading-none mt-1">0</p></div>
+        <div class="metric-card border-l-4 border-l-red-400 min-w-[100px]"><p class="text-[8px] font-black text-slate-400 uppercase">Missing</p><p id="missing-count" class="text-xl font-black text-red-500 mono leading-none mt-1">0</p><p class="text-[8px] text-slate-400 font-bold mt-0.5">unresolved</p></div>
         <div class="flex-1 min-w-[200px]"><div class="grid grid-cols-8 gap-1" id="map-container"></div></div>
     </div>
 </div>
 
 <!-- Main Content -->
-
 <div class="flex-1 flex overflow-hidden">
     <!-- Sidebar -->
     <aside class="w-72 bg-slate-50 border-r flex flex-col overflow-y-auto no-scrollbar shrink-0">
@@ -139,121 +136,117 @@
             </div>
         </div>
 
-```
-    <!-- Cycle Count Assignments -->
-    <div class="p-4 border-b">
-        <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Assign Cycle Counts</h2>
-        
-        <!-- Aisle picker -->
-        <div class="mb-3">
-            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Aisles</p>
-            <div class="flex flex-wrap gap-1" id="aisle-picker">
+        <!-- Cycle Count Assignments -->
+        <div class="p-4 border-b">
+            <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Assign Cycle Counts</h2>
+            
+            <!-- Aisle picker -->
+            <div class="mb-3">
+                <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Aisles</p>
+                <div class="flex flex-wrap gap-1" id="aisle-picker">
+                </div>
+            </div>
+
+            <!-- Bin range (optional) -->
+            <div class="mb-3">
+                <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Bin Range (optional)</p>
+                <div class="flex gap-1.5">
+                    <input type="text" id="assign-bin-from" placeholder="00" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
+                    <span class="text-slate-300 self-center font-black">→</span>
+                    <input type="text" id="assign-bin-to" placeholder="38" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
+                </div>
+            </div>
+
+            <!-- Product number -->
+            <div class="mb-3">
+                <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Product # (optional)</p>
+                <div class="flex gap-1.5">
+                    <input type="text" id="assign-product" placeholder="e.g. 3307506" class="flex-1 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold outline-none focus:border-blue-500">
+                    <button onclick="addProductAssignment()" class="bg-orange-500 text-white px-3 rounded-lg text-[9px] font-black uppercase">+</button>
+                </div>
+            </div>
+
+            <!-- Push / Clear -->
+            <div class="flex gap-2 mb-3">
+                <button onclick="pushAssignments()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase shadow active:scale-[0.97] transition-all">Push to Team</button>
+                <button onclick="clearAssignments()" class="bg-slate-200 text-slate-500 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-[0.97]">Clear</button>
+            </div>
+
+            <!-- Current assignments list -->
+            <div id="assignment-list" class="space-y-1.5">
+                <p class="text-[9px] text-slate-300 font-semibold italic">No assignments set</p>
             </div>
         </div>
 
-        <!-- Bin range (optional) -->
-        <div class="mb-3">
-            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Bin Range (optional)</p>
-            <div class="flex gap-1.5">
-                <input type="text" id="assign-bin-from" placeholder="00" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
-                <span class="text-slate-300 self-center font-black">→</span>
-                <input type="text" id="assign-bin-to" placeholder="38" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
+        <div class="p-4">
+            <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Action Tracker</h2>
+            <div class="space-y-2">
+                <div id="tracker-move" onclick="setTab('move')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-purple-500 uppercase tracking-wide">Movements</p><p id="tracker-move-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-move-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-move-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-purple-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+                <div id="tracker-adj" onclick="setTab('adj')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-amber-500 uppercase tracking-wide">Adjustments</p><p id="tracker-adj-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-adj-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-adj-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+                <div id="tracker-miss" onclick="setTab('miss')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-red-500 uppercase tracking-wide">Missing</p><p id="tracker-miss-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-miss-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-miss-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+                <div id="tracker-inactive" onclick="setTab('inactive')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-blue-500 uppercase tracking-wide">Inactive / Extra</p><p id="tracker-inactive-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-inactive-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-inactive-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
+            </div>
+        </div>
+        <div class="border-t mx-4"></div>
+        <div class="p-4"><h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Resolution Reasons</h2><div id="resolution-breakdown" class="space-y-1.5"></div></div>
+        <div class="border-t mx-4"></div>
+        <div class="p-4"><h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Active Counters</h2><div id="auditor-list" class="space-y-1.5"><p class="text-[10px] text-slate-300 font-semibold">Waiting for data...</p></div></div>
+    </aside>
+
+    <!-- Main Table -->
+    <main class="flex-1 flex flex-col min-w-0">
+        <div class="bg-white border-b flex items-center justify-between shrink-0">
+            <nav class="flex overflow-x-auto no-scrollbar">
+                <button onclick="setTab('move')" id="btn-move" class="tab-btn active">Movements <span class="count bg-purple-100 text-purple-700" id="count-move">0</span></button>
+                <button onclick="setTab('adj')" id="btn-adj" class="tab-btn">Adjustments <span class="count bg-amber-100 text-amber-700" id="count-adj">0</span></button>
+                <button onclick="setTab('miss')" id="btn-miss" class="tab-btn">Missing <span class="count bg-red-100 text-red-700" id="count-miss">0</span></button>
+                <button onclick="setTab('inactive')" id="btn-inactive" class="tab-btn">Inactive <span class="count bg-blue-100 text-blue-700" id="count-inactive">0</span></button>
+                <button onclick="setTab('ok')" id="btn-ok" class="tab-btn">Verified OK <span class="count bg-emerald-100 text-emerald-700" id="count-ok">0</span></button>
+                <button onclick="setTab('missing-list')" id="btn-missing-list" class="tab-btn">Missing Items <span class="count bg-red-100 text-red-600" id="count-missing-list">0</span></button>
+            </nav>
+            <div class="relative pr-4">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input type="text" id="search-input" placeholder="Search HU, product, bin..." class="search-bar" oninput="renderReport()">
             </div>
         </div>
 
-        <!-- Product number -->
-        <div class="mb-3">
-            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Product # (optional)</p>
-            <div class="flex gap-1.5">
-                <input type="text" id="assign-product" placeholder="e.g. 3307506" class="flex-1 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold outline-none focus:border-blue-500">
-                <button onclick="addProductAssignment()" class="bg-orange-500 text-white px-3 rounded-lg text-[9px] font-black uppercase">+</button>
+        <!-- Bulk Actions -->
+        <div id="bulk-bar" class="hidden bg-blue-50 border-b px-6 py-2 flex items-center justify-between shrink-0">
+            <p class="text-[11px] font-bold text-blue-700"><span id="selected-count">0</span> selected</p>
+            <div class="flex gap-2">
+                <select id="bulk-resolution" class="resolve-select text-[10px]"><option value="">— Bulk Resolution —</option><option value="Item Moved">Item Moved</option><option value="Item Adjusted">Item Adjusted</option><option value="Max Volume">Max Volume</option><option value="Bin does not exist">Bin does not exist</option><option value="Mixed bin">Mixed bin</option></select>
+                <button onclick="applyBulkResolve()" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">Apply</button>
+                <button onclick="clearSelection()" class="text-blue-500 px-3 py-1.5 text-[10px] font-black uppercase">Clear</button>
             </div>
         </div>
 
-        <!-- Push / Clear -->
-        <div class="flex gap-2 mb-3">
-            <button onclick="pushAssignments()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase shadow active:scale-[0.97] transition-all">Push to Team</button>
-            <button onclick="clearAssignments()" class="bg-slate-200 text-slate-500 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-[0.97]">Clear</button>
+        <div class="flex-1 overflow-y-auto slim-scrollbar">
+            <table class="w-full text-left border-collapse">
+                <thead class="sticky top-0 bg-white z-10 shadow-sm">
+                    <tr class="text-[10px] uppercase text-slate-400 border-b">
+                        <th class="pb-3 pt-4 px-4 w-8"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this.checked)" class="w-4 h-4 rounded"></th>
+                        <th class="pb-3 pt-4 px-2">HU</th>
+                        <th class="pb-3 pt-4 px-2">Product</th>
+                        <th class="pb-3 pt-4 px-2">Bins</th>
+                        <th class="pb-3 pt-4 px-2">Qty</th>
+                        <th class="pb-3 pt-4 px-2">Evidence</th>
+                        <th class="pb-3 pt-4 px-2">Auditor</th>
+                        <th class="pb-3 pt-4 px-4 text-right">Resolution</th>
+                    </tr>
+                </thead>
+                <tbody id="report-table" class="text-sm"></tbody>
+            </table>
+            <div id="empty-state" class="hidden py-16 text-center"><p class="text-slate-300 font-bold text-sm">No items in this category</p></div>
         </div>
-
-        <!-- Current assignments list -->
-        <div id="assignment-list" class="space-y-1.5">
-            <p class="text-[9px] text-slate-300 font-semibold italic">No assignments set</p>
-        </div>
-    </div>
-
-    <div class="p-4">
-        <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Action Tracker</h2>
-        <div class="space-y-2">
-            <div id="tracker-move" onclick="setTab('move')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-purple-500 uppercase tracking-wide">Movements</p><p id="tracker-move-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-move-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-move-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-purple-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
-            <div id="tracker-adj" onclick="setTab('adj')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-amber-500 uppercase tracking-wide">Adjustments</p><p id="tracker-adj-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-adj-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-adj-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-amber-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
-            <div id="tracker-miss" onclick="setTab('miss')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-red-500 uppercase tracking-wide">Missing</p><p id="tracker-miss-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-miss-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-miss-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-red-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
-            <div id="tracker-inactive" onclick="setTab('inactive')" class="tracker-card"><div class="flex justify-between items-center"><div><p class="text-[9px] font-black text-blue-500 uppercase tracking-wide">Inactive / Extra</p><p id="tracker-inactive-total" class="text-2xl font-black leading-none mt-1 mono">0</p></div><div class="text-right"><p class="text-[8px] font-black text-slate-400 uppercase">Resolved</p><p id="tracker-inactive-resolved" class="text-lg font-black text-emerald-500 leading-none mt-0.5 mono">0</p></div></div><div id="tracker-inactive-bar" class="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width:0%"></div></div></div>
-        </div>
-    </div>
-    <div class="border-t mx-4"></div>
-    <div class="p-4"><h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Resolution Reasons</h2><div id="resolution-breakdown" class="space-y-1.5"></div></div>
-    <div class="border-t mx-4"></div>
-    <div class="p-4"><h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Active Counters</h2><div id="auditor-list" class="space-y-1.5"><p class="text-[10px] text-slate-300 font-semibold">Waiting for data...</p></div></div>
-</aside>
-
-<!-- Main Table -->
-<main class="flex-1 flex flex-col min-w-0">
-    <div class="bg-white border-b flex items-center justify-between shrink-0">
-        <nav class="flex overflow-x-auto no-scrollbar">
-            <button onclick="setTab('move')" id="btn-move" class="tab-btn active">Movements <span class="count bg-purple-100 text-purple-700" id="count-move">0</span></button>
-            <button onclick="setTab('adj')" id="btn-adj" class="tab-btn">Adjustments <span class="count bg-amber-100 text-amber-700" id="count-adj">0</span></button>
-            <button onclick="setTab('miss')" id="btn-miss" class="tab-btn">Missing <span class="count bg-red-100 text-red-700" id="count-miss">0</span></button>
-            <button onclick="setTab('inactive')" id="btn-inactive" class="tab-btn">Inactive <span class="count bg-blue-100 text-blue-700" id="count-inactive">0</span></button>
-            <button onclick="setTab('ok')" id="btn-ok" class="tab-btn">Verified OK <span class="count bg-emerald-100 text-emerald-700" id="count-ok">0</span></button>
-        </nav>
-        <div class="relative pr-4">
-            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="text" id="search-input" placeholder="Search HU, product, bin..." class="search-bar" oninput="renderReport()">
-        </div>
-    </div>
-
-    <!-- Bulk Actions -->
-    <div id="bulk-bar" class="hidden bg-blue-50 border-b px-6 py-2 flex items-center justify-between shrink-0">
-        <p class="text-[11px] font-bold text-blue-700"><span id="selected-count">0</span> selected</p>
-        <div class="flex gap-2">
-            <select id="bulk-resolution" class="resolve-select text-[10px]"><option value="">— Bulk Resolution —</option><option value="Item Moved">Item Moved</option><option value="Item Adjusted">Item Adjusted</option><option value="Max Volume">Max Volume</option><option value="Bin does not exist">Bin does not exist</option><option value="Mixed bin">Mixed bin</option></select>
-            <button onclick="applyBulkResolve()" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase">Apply</button>
-            <button onclick="clearSelection()" class="text-blue-500 px-3 py-1.5 text-[10px] font-black uppercase">Clear</button>
-        </div>
-    </div>
-
-    <div class="flex-1 overflow-y-auto slim-scrollbar">
-        <table class="w-full text-left border-collapse">
-            <thead class="sticky top-0 bg-white z-10 shadow-sm">
-                <tr class="text-[10px] uppercase text-slate-400 border-b">
-                    <th class="pb-3 pt-4 px-4 w-8"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this.checked)" class="w-4 h-4 rounded"></th>
-                    <th class="pb-3 pt-4 px-2">HU</th>
-                    <th class="pb-3 pt-4 px-2">Product</th>
-                    <th class="pb-3 pt-4 px-2">Bins</th>
-                    <th class="pb-3 pt-4 px-2">Qty</th>
-                    <th class="pb-3 pt-4 px-2">Evidence</th>
-                    <th class="pb-3 pt-4 px-2">Auditor</th>
-                    <th class="pb-3 pt-4 px-4 text-right">Resolution</th>
-                </tr>
-            </thead>
-            <tbody id="report-table" class="text-sm"></tbody>
-        </table>
-        <div id="empty-state" class="hidden py-16 text-center"><p class="text-slate-300 font-bold text-sm">No items in this category</p></div>
-    </div>
-</main>
-```
-
+    </main>
 </div>
 
 <!-- Photo Viewer Overlay -->
-
 <div id="photo-overlay" class="photo-overlay" style="display:none" onclick="closePhotoViewer()">
     <img id="photo-overlay-img" src="">
 </div>
 
 <!-- Detail Panel (slide-in) -->
-
 <div id="detail-panel" class="detail-panel">
     <div class="p-6 border-b flex justify-between items-center sticky top-0 bg-white z-10">
         <h2 class="font-black uppercase text-lg">Item Detail</h2>
@@ -276,7 +269,8 @@ function itemKey(i) { return `${i.hu}|${i.scanBin}`; }
 function initMap() { const c=document.getElementById('map-container'); "ABCDEFGHJKLMNP".split("").forEach(r=>{const d=document.createElement('div');d.id=`row-box-${r}`;d.className="row-box";d.innerHTML=`<div class="row-label">${r}</div><div id="fill-${r}" class="row-fill" style="height:0%"></div>`;d.onclick=()=>{document.getElementById('search-input').value=`W${r}`;renderReport();};c.appendChild(d);}); }
 
 // ===== FETCH =====
-async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); if(d.assignments) updateLiveAssignments(d.assignments); } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
+let missingItems = [];
+async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; missingItems=d.missing||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); if(d.assignments) updateLiveAssignments(d.assignments); document.getElementById('missing-count').innerText=missingItems.length; } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
 
 // ===== PHOTO VIEWER =====
 function openPhotoViewer(url) { document.getElementById('photo-overlay-img').src=url; document.getElementById('photo-overlay').style.display='flex'; }
@@ -335,6 +329,7 @@ function updateStats() {
     document.getElementById('count-miss').innerText=items.filter(i=>i.type==='miss'&&!isResolved(i)).length;
     document.getElementById('count-inactive').innerText=items.filter(i=>i.type==='inactive'&&!isResolved(i)).length;
     document.getElementById('count-ok').innerText=items.filter(i=>i.type==='ok'||isResolved(i)).length;
+    document.getElementById('count-missing-list').innerText=missingItems.length;
     ['move','adj','miss','inactive'].forEach(k=>{document.getElementById(`tracker-${k}`).classList.toggle('selected',currentTab===k);});
 
     const bc=document.getElementById('resolution-breakdown');bc.innerHTML="";
@@ -350,6 +345,33 @@ function updateStats() {
 function renderReport() {
     const tbody=document.getElementById('report-table');tbody.innerHTML="";
     const search=(document.getElementById('search-input').value||"").toLowerCase().trim();
+
+    // Handle the Missing Items tab separately — data comes from missingItems, not reportData
+    if (currentTab === 'missing-list') {
+        let filtered = missingItems;
+        if (search) filtered = filtered.filter(i => `${i.hu} ${i.product} ${i.desc} ${i.sapBin} ${i.note}`.toLowerCase().includes(search));
+        document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
+        document.getElementById('count-missing-list').innerText = missingItems.length;
+        
+        filtered.forEach(i => {
+            const tr = document.createElement('tr');
+            tr.className = 'report-row border-b';
+            const age = i.timestamp ? Math.round((Date.now() - new Date(i.timestamp).getTime()) / 3600000) : '?';
+            tr.innerHTML = `
+                <td class="py-3 px-4 w-8"></td>
+                <td class="py-3 px-2 mono font-bold text-red-500 text-[12px]">${i.hu}</td>
+                <td class="py-3 px-2"><div class="font-bold text-slate-800 text-[12px]">${i.product}</div><div class="text-[10px] text-slate-400 truncate max-w-[160px]">${i.desc}</div></td>
+                <td class="py-3 px-2"><span class="mono text-[11px] font-bold text-slate-500">${i.sapBin}</span></td>
+                <td class="py-3 px-2"><span class="mono font-bold text-[12px]">${i.sapQty}</span></td>
+                <td class="py-3 px-2">${i.note ? `<span class="text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md">${i.note.substring(0,20)}</span>` : '<span class="text-slate-200">—</span>'}</td>
+                <td class="py-3 px-2"><span class="text-[10px] font-bold text-slate-400">${i.auditor||'—'}</span></td>
+                <td class="py-3 px-4 text-right"><span class="text-[9px] font-black text-red-400 bg-red-50 px-2 py-1 rounded-lg">${age}h ago</span></td>`;
+            tbody.appendChild(tr);
+        });
+        updateBulkBar();
+        return;
+    }
+
     let filtered=reportData.filter(i=>{if(i.hu==="EMPTY_BIN")return false;const r=isResolved(i);if(currentTab==='ok')return i.type==='ok'||r;if(currentTab==='move')return !r&&i.type==='move';if(currentTab==='adj')return !r&&i.type==='adj';if(currentTab==='miss')return !r&&i.type==='miss';if(currentTab==='inactive')return !r&&i.type==='inactive';return false;});
     if(search) filtered=filtered.filter(i=>`${i.hu} ${i.prod} ${i.desc} ${i.sapBin} ${i.scanBin} ${i.auditor} ${i.note}`.toLowerCase().includes(search));
     document.getElementById('empty-state').classList.toggle('hidden',filtered.length>0);
@@ -359,14 +381,9 @@ function renderReport() {
         const optionsHTML=RESOLUTION_OPTIONS.map(o=>`<option value="${o}" ${String(i.verified)===o?'selected':''}>${o||'— Select —'}</option>`).join('');
         const qtyDiff=i.scanQty-i.sapQty;const qtyColor=qtyDiff===0?'text-slate-700':(qtyDiff>0?'text-emerald-600':'text-red-600');const qtySign=qtyDiff>0?'+':'';
         
-        // Evidence column: note + photo
         let evidenceHTML = '';
-        if (i.photoUrl) {
-            evidenceHTML += `<img src="${i.photoUrl}" class="table-photo" onclick="event.stopPropagation();openPhotoViewer('${i.photoUrl}')" title="View photo">`;
-        }
-        if (i.note) {
-            evidenceHTML += `<span class="note-preview text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md inline-block max-w-[120px] truncate" title="${i.note}" onclick="event.stopPropagation()">📝 ${i.note.substring(0,20)}</span>`;
-        }
+        if (i.photoUrl) { evidenceHTML += `<img src="${i.photoUrl}" class="table-photo" onclick="event.stopPropagation();openPhotoViewer('${i.photoUrl}')" title="View photo">`; }
+        if (i.note) { evidenceHTML += `<span class="note-preview text-[10px] text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-md inline-block max-w-[120px] truncate" title="${i.note}" onclick="event.stopPropagation()">📝 ${i.note.substring(0,20)}</span>`; }
         if (!i.photoUrl && !i.note) evidenceHTML = '<span class="text-slate-200">—</span>';
 
         const tr=document.createElement('tr');
@@ -469,7 +486,7 @@ function exportToExcel(){
 }
 
 // ===== KEYBOARD =====
-document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;if(e.key==='1')setTab('move');else if(e.key==='2')setTab('adj');else if(e.key==='3')setTab('miss');else if(e.key==='4')setTab('inactive');else if(e.key==='5')setTab('ok');else if(e.key==='e'||e.key==='E')exportToExcel();else if(e.key==='/'){e.preventDefault();document.getElementById('search-input').focus();}else if(e.key==='Escape')closeDetailPanel();});
+document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;if(e.key==='1')setTab('move');else if(e.key==='2')setTab('adj');else if(e.key==='3')setTab('miss');else if(e.key==='4')setTab('inactive');else if(e.key==='5')setTab('ok');else if(e.key==='6')setTab('missing-list');else if(e.key==='e'||e.key==='E')exportToExcel();else if(e.key==='/'){e.preventDefault();document.getElementById('search-input').focus();}else if(e.key==='Escape')closeDetailPanel();});
 
 initMap();fetchData();setInterval(fetchData,5000);
 
@@ -732,6 +749,5 @@ function updateSAPFreshness(sapMeta) {
     }
 }
 </script>
-
 </body>
 </html>

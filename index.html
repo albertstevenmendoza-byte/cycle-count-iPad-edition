@@ -270,7 +270,7 @@ function initMap() { const c=document.getElementById('map-container'); "ABCDEFGH
 
 // ===== FETCH =====
 let missingItems = [];
-async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; missingItems=d.missing||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); if(d.assignments) updateLiveAssignments(d.assignments); document.getElementById('missing-count').innerText=missingItems.length; } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
+async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; missingItems=d.missing||[]; if(!document.activeElement || !document.activeElement.classList.contains('resolve-select')) renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); if(d.assignments) updateLiveAssignments(d.assignments); document.getElementById('missing-count').innerText=missingItems.length; } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
 
 // ===== PHOTO VIEWER =====
 function openPhotoViewer(url) { document.getElementById('photo-overlay-img').src=url; document.getElementById('photo-overlay').style.display='flex'; }

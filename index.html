@@ -140,6 +140,48 @@
         </div>
 
 ```
+    <!-- Cycle Count Assignments -->
+    <div class="p-4 border-b">
+        <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Assign Cycle Counts</h2>
+        
+        <!-- Aisle picker -->
+        <div class="mb-3">
+            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Aisles</p>
+            <div class="flex flex-wrap gap-1" id="aisle-picker">
+            </div>
+        </div>
+
+        <!-- Bin range (optional) -->
+        <div class="mb-3">
+            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Bin Range (optional)</p>
+            <div class="flex gap-1.5">
+                <input type="text" id="assign-bin-from" placeholder="00" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
+                <span class="text-slate-300 self-center font-black">→</span>
+                <input type="text" id="assign-bin-to" placeholder="38" class="w-16 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold text-center outline-none focus:border-blue-500" maxlength="2">
+            </div>
+        </div>
+
+        <!-- Product number -->
+        <div class="mb-3">
+            <p class="text-[8px] font-black text-slate-400 uppercase mb-1.5">Product # (optional)</p>
+            <div class="flex gap-1.5">
+                <input type="text" id="assign-product" placeholder="e.g. 3307506" class="flex-1 p-2 bg-slate-50 border-2 rounded-lg mono text-[11px] font-bold outline-none focus:border-blue-500">
+                <button onclick="addProductAssignment()" class="bg-orange-500 text-white px-3 rounded-lg text-[9px] font-black uppercase">+</button>
+            </div>
+        </div>
+
+        <!-- Push / Clear -->
+        <div class="flex gap-2 mb-3">
+            <button onclick="pushAssignments()" class="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-[10px] font-black uppercase shadow active:scale-[0.97] transition-all">Push to Team</button>
+            <button onclick="clearAssignments()" class="bg-slate-200 text-slate-500 px-3 py-2.5 rounded-lg text-[10px] font-black uppercase active:scale-[0.97]">Clear</button>
+        </div>
+
+        <!-- Current assignments list -->
+        <div id="assignment-list" class="space-y-1.5">
+            <p class="text-[9px] text-slate-300 font-semibold italic">No assignments set</p>
+        </div>
+    </div>
+
     <div class="p-4">
         <h2 class="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-3">Action Tracker</h2>
         <div class="space-y-2">
@@ -234,7 +276,7 @@ function itemKey(i) { return `${i.hu}|${i.scanBin}`; }
 function initMap() { const c=document.getElementById('map-container'); "ABCDEFGHJKLMNP".split("").forEach(r=>{const d=document.createElement('div');d.id=`row-box-${r}`;d.className="row-box";d.innerHTML=`<div class="row-label">${r}</div><div id="fill-${r}" class="row-fill" style="height:0%"></div>`;d.onclick=()=>{document.getElementById('search-input').value=`W${r}`;renderReport();};c.appendChild(d);}); }
 
 // ===== FETCH =====
-async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
+async function fetchData() { try { const r=await fetch(API_URL); const d=await r.json(); reportData=d.report||[]; renderReport(); updateStats(); if(d.sapMeta) updateSAPFreshness(d.sapMeta); if(d.assignments) updateLiveAssignments(d.assignments); } catch(e) { document.getElementById('sync-status').textContent='Offline'; document.getElementById('sync-status').className='text-red-400 font-bold text-xs uppercase'; } }
 
 // ===== PHOTO VIEWER =====
 function openPhotoViewer(url) { document.getElementById('photo-overlay-img').src=url; document.getElementById('photo-overlay').style.display='flex'; }
@@ -430,6 +472,154 @@ function exportToExcel(){
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA')return;if(e.key==='1')setTab('move');else if(e.key==='2')setTab('adj');else if(e.key==='3')setTab('miss');else if(e.key==='4')setTab('inactive');else if(e.key==='5')setTab('ok');else if(e.key==='e'||e.key==='E')exportToExcel();else if(e.key==='/'){e.preventDefault();document.getElementById('search-input').focus();}else if(e.key==='Escape')closeDetailPanel();});
 
 initMap();fetchData();setInterval(fetchData,5000);
+
+// ===== CYCLE COUNT ASSIGNMENTS =====
+const CC_AISLE_ROWS = "ABCDEFGHJKLMNP".split("");
+let pendingAssignments = []; // [{type:'aisle'|'product', value:'WF'|'WF:00-25'|'3307506', description:''}]
+let selectedAisles = new Set();
+
+function initAislePicker() {
+    const container = document.getElementById('aisle-picker');
+    container.innerHTML = '';
+    CC_AISLE_ROWS.forEach(row => {
+        const btn = document.createElement('button');
+        btn.id = `pick-${row}`;
+        btn.className = `w-8 h-8 rounded-lg text-[10px] font-black border-2 transition-all ${selectedAisles.has(row) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`;
+        btn.textContent = row;
+        btn.onclick = () => {
+            if (selectedAisles.has(row)) selectedAisles.delete(row);
+            else selectedAisles.add(row);
+            btn.className = `w-8 h-8 rounded-lg text-[10px] font-black border-2 transition-all ${selectedAisles.has(row) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`;
+        };
+        container.appendChild(btn);
+    });
+}
+
+function addProductAssignment() {
+    const prod = document.getElementById('assign-product').value.trim();
+    if (!prod) return;
+    pendingAssignments.push({ type: 'product', value: prod, description: 'Product count: ' + prod, id: 'P' + Date.now() + prod });
+    document.getElementById('assign-product').value = '';
+    renderAssignmentList();
+}
+
+function buildAssignmentsFromUI() {
+    const list = [...pendingAssignments];
+    const binFrom = document.getElementById('assign-bin-from').value.trim();
+    const binTo = document.getElementById('assign-bin-to').value.trim();
+    const rangeStr = (binFrom || binTo) ? `${binFrom || '00'}-${binTo || '38'}` : '';
+
+    selectedAisles.forEach(row => {
+        const value = rangeStr ? `W${row}:${rangeStr}` : `W${row}`;
+        const desc = rangeStr ? `W${row} Bins ${rangeStr}` : `W${row} Full aisle`;
+        list.push({ type: 'aisle', value, description: desc, id: 'A' + Date.now() + row });
+    });
+    // Ensure all items have IDs
+    list.forEach(a => { if (!a.id) a.id = 'A' + Date.now() + Math.random().toString(36).slice(2,6); });
+    return list;
+}
+
+async function pushAssignments() {
+    const assignments = buildAssignmentsFromUI();
+    if (assignments.length === 0) { alert('Select at least one aisle or add a product number.'); return; }
+    
+    try {
+        const res = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'setAssignments', assignments, assignedBy: 'Control Center' })
+        });
+        const result = await res.json();
+        if (result.success) {
+            // Reset UI
+            selectedAisles.clear();
+            pendingAssignments = [];
+            document.getElementById('assign-bin-from').value = '';
+            document.getElementById('assign-bin-to').value = '';
+            initAislePicker();
+            renderAssignmentList();
+            fetchData(); // refresh to show current assignments
+        }
+    } catch (err) {
+        alert('Failed to push assignments: ' + err.message);
+    }
+}
+
+async function clearAssignments() {
+    if (!confirm('Clear all assignments for the team?')) return;
+    selectedAisles.clear();
+    pendingAssignments = [];
+    document.getElementById('assign-bin-from').value = '';
+    document.getElementById('assign-bin-to').value = '';
+    initAislePicker();
+    
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'setAssignments', assignments: [], assignedBy: 'Control Center' })
+        });
+        fetchData();
+    } catch {}
+    renderAssignmentList();
+}
+
+function renderAssignmentList() {
+    const container = document.getElementById('assignment-list');
+    const pending = buildAssignmentsFromUI();
+    const live = (window._liveAssignments || []);
+    
+    if (pending.length === 0 && live.length === 0) {
+        container.innerHTML = '<p class="text-[9px] text-slate-300 font-semibold italic">No assignments set</p>';
+        return;
+    }
+
+    container.innerHTML = '';
+    
+    const displayList = pending.length > 0 ? pending : live;
+    const isLive = pending.length === 0;
+
+    displayList.forEach((a, idx) => {
+        const icon = a.type === 'product' ? '📦' : '📍';
+        const div = document.createElement('div');
+        
+        // Status-aware styling
+        let statusBadge = '';
+        let borderColor = a.type === 'product' ? 'border-orange-200' : 'border-blue-200';
+        let bgColor = a.type === 'product' ? 'bg-orange-50' : 'bg-blue-50';
+        let textColor = a.type === 'product' ? 'text-orange-700' : 'text-blue-700';
+        
+        if (isLive && a.status) {
+            if (a.status === 'accepted') {
+                statusBadge = `<div class="text-right"><span class="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">✓ Accepted</span><p class="text-[7px] text-slate-400 font-semibold mt-0.5">${a.respondedBy || ''}</p></div>`;
+                borderColor = 'border-emerald-300';
+                bgColor = 'bg-emerald-50';
+            } else if (a.status === 'declined') {
+                statusBadge = `<div class="text-right"><span class="text-[8px] font-black text-red-500 bg-red-50 px-1.5 py-0.5 rounded">✗ Declined</span><p class="text-[7px] text-slate-400 font-semibold mt-0.5">${a.respondedBy || ''}</p></div>`;
+                borderColor = 'border-red-200';
+                bgColor = 'bg-red-50/50';
+                textColor = 'text-red-400';
+            } else {
+                statusBadge = `<span class="text-[8px] font-black text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded animate-pulse">⏳ Pending</span>`;
+                borderColor = 'border-amber-300';
+            }
+        } else if (!isLive && a.type === 'product') {
+            statusBadge = `<button onclick="pendingAssignments.splice(${pendingAssignments.indexOf(a)},1);renderAssignmentList()" class="text-red-400 font-black text-xs">✕</button>`;
+        }
+
+        div.className = `flex justify-between items-center p-2.5 rounded-lg border text-[10px] font-bold ${bgColor} ${borderColor} ${textColor}`;
+        div.innerHTML = `<span class="flex-1 min-w-0 truncate">${icon} ${a.description || a.value}</span>${statusBadge}`;
+        container.appendChild(div);
+    });
+}
+
+function updateLiveAssignments(assignments) {
+    window._liveAssignments = assignments || [];
+    if (selectedAisles.size === 0 && pendingAssignments.length === 0) {
+        renderAssignmentList();
+    }
+}
+
+// Init aisle picker on load
+setTimeout(initAislePicker, 100);
 
 // ===== SAP DATA UPLOAD =====
 async function handleSAPUpload(file) {

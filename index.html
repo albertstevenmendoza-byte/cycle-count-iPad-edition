@@ -2,483 +2,1072 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Control Center 2.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAP Auditor | Floor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #f5f5f7;
-            --surface: #ffffff;
-            --surface-2: #f0f0f3;
-            --surface-3: #e8e8ec;
-            --border: #dcdce2;
-            --text: #1a1a1f;
-            --text-2: #6b6b78;
-            --text-3: #9898a6;
-            --accent: #3b6cf5;
-            --accent-light: #edf1fe;
-            --accent-glow: rgba(59,108,245,0.08);
-            --green: #16a34a;
-            --green-bg: #f0fdf4;
-            --green-border: #bbf7d0;
-            --red: #dc2626;
-            --red-bg: #fef2f2;
-            --red-border: #fecaca;
-            --amber: #d97706;
-            --amber-bg: #fffbeb;
-            --amber-border: #fde68a;
-            --purple: #7c3aed;
-            --purple-bg: #f5f3ff;
-            --purple-border: #ddd6fe;
-            --cyan: #0891b2;
-            --cyan-bg: #ecfeff;
-            --cyan-border: #a5f3fc;
-            --radius: 14px;
-            --radius-sm: 10px;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
-            --shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        .mono { font-family: 'IBM Plex Mono', monospace; }
-        button { font-family: inherit; border: none; cursor: pointer; }
-        input, select { font-family: inherit; }
-        .slim-scroll::-webkit-scrollbar { width: 5px; }
-        .slim-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+        :root { --blue:#2563eb; --green:#059669; --red:#dc2626; --purple:#7c3aed; --orange:#ea580c; --cyan:#0891b2; --slate-900:#0f172a; --slate-800:#1e293b; --slate-50:#f8fafc; }
+        * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+        body { font-family:'DM Sans',sans-serif; overscroll-behavior:none; }
+        .mono { font-family:'JetBrains Mono',monospace; }
+        .card-verified { border-left:6px solid var(--green); background:linear-gradient(135deg,#ecfdf5 0%,#fff 60%); }
+        .card-missing { border-left:6px solid var(--red); background:#fef2f2; opacity:0.65; }
+        .card-extra { border-left:6px solid var(--purple); background:#f5f3ff; }
+        .card-default { border-left:6px solid #cbd5e1; }
+        #audit-list,#fresh-list { -webkit-overflow-scrolling:touch; scrollbar-width:none; scroll-behavior:smooth; }
+        #audit-list::-webkit-scrollbar,#fresh-list::-webkit-scrollbar { display:none; }
+        #toast { position:fixed; top:env(safe-area-inset-top,16px); left:50%; transform:translateX(-50%) translateY(-120%); z-index:9999; pointer-events:none; transition:transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275),opacity 0.4s; opacity:0; }
+        #toast.show { transform:translateX(-50%) translateY(16px); opacity:1; }
+        .queue-badge { position:absolute; top:-4px; right:-4px; min-width:18px; height:18px; background:var(--orange); color:white; border-radius:99px; font-size:9px; font-weight:900; display:flex; align-items:center; justify-content:center; border:2px solid var(--slate-900); }
+        @keyframes pulse-sync { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .sync-active { animation:pulse-sync 1.2s infinite; }
+        .nav-pill { transition:all 0.2s ease; }
+        .nav-pill.active { background:var(--blue); color:white; box-shadow:0 4px 12px rgba(37,99,235,0.3); }
+        .row-btn { position:relative; transition:all 0.15s ease; }
+        .row-btn:active { transform:scale(0.93); }
+        .row-btn .fill-bar { position:absolute; bottom:0; left:0; right:0; background:linear-gradient(to top,rgba(37,99,235,0.15),transparent); transition:height 0.5s ease; }
+        @keyframes swipe-hint { 0%{transform:translateX(0);opacity:0.6} 50%{transform:translateX(-8px);opacity:1} 100%{transform:translateX(0);opacity:0.6} }
+        .swipe-hint { animation:swipe-hint 2s ease-in-out infinite; }
+        .bottom-bar { background:rgba(255,255,255,0.92); backdrop-filter:blur(20px) saturate(180%); -webkit-backdrop-filter:blur(20px) saturate(180%); border-top:1px solid rgba(0,0,0,0.06); }
+        .stepper-btn { min-width:56px; min-height:56px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:900; border-radius:16px; transition:all 0.1s; }
+        .stepper-btn:active { transform:scale(0.9); }
+        .bin-nav-btn { min-width:48px; min-height:48px; display:flex; align-items:center; justify-content:center; border-radius:16px; font-weight:900; transition:all 0.1s; }
+        .bin-nav-btn:active { transform:scale(0.9); }
+        .modal-backdrop { background:rgba(15,23,42,0.6); backdrop-filter:blur(8px); }
+        .chip { display:inline-flex; align-items:center; gap:4px; padding:6px 14px; border-radius:99px; font-size:11px; font-weight:700; transition:all 0.15s; cursor:pointer; }
+        .chip:active { transform:scale(0.95); }
+        .annotation-layer { position:relative; touch-action:none; }
+        .annotation-layer canvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:10; }
+        .color-dot { width:28px; height:28px; border-radius:50%; border:3px solid white; box-shadow:0 1px 4px rgba(0,0,0,0.2); cursor:pointer; transition:transform 0.1s; }
+        .color-dot:active,.color-dot.active { transform:scale(1.2); box-shadow:0 0 0 2px var(--blue); }
+        @keyframes spin { to{transform:rotate(360deg)} }
+        .spinner { width:16px; height:16px; border:2px solid white; border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; display:inline-block; }
 
-        /* ===== HEADER ===== */
-        .top-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
-        .top-bar h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--text); }
-        .top-bar-sub { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; }
-        .top-bar-right { display: flex; align-items: center; gap: 12px; }
-        .sync-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 10px; font-weight: 700; color: var(--text-2); }
-        .sync-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-        .sync-pill .dot.off { background: var(--red); animation: pulse 1.5s infinite; }
-        .freshness { padding: 5px 12px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
-        .freshness.fresh { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-        .freshness.stale { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
-        .freshness.old { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-        .freshness.none { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
-        .export-btn { background: var(--green); color: white; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: opacity 0.15s; box-shadow: var(--shadow-sm); }
-        .export-btn:hover { opacity: 0.85; }
+        /* ===== FRESH MODE STYLES ===== */
+        .fresh-card { background:white; border:2px solid #e2e8f0; border-radius:1.25rem; overflow:hidden; transition:all 0.2s; }
+        .fresh-card.counted { border-color:#a7f3d0; background:linear-gradient(135deg,#ecfdf5,#fff 70%); }
+        .fresh-card.has-variance { border-color:#fbbf24; }
+        .fresh-stepper { min-width:64px; min-height:64px; display:flex; align-items:center; justify-content:center; font-size:2rem; font-weight:900; border-radius:1rem; transition:all 0.1s; -webkit-user-select:none; user-select:none; }
+        .fresh-stepper:active { transform:scale(0.88); }
+        .fresh-qty-input { width:100%; text-align:center; font-size:3rem; font-weight:900; color:#1e40af; background:transparent; border:none; outline:none; font-family:'JetBrains Mono',monospace; }
+        .fresh-qty-input::placeholder { color:#cbd5e1; }
+        .condition-tag { padding:5px 12px; border-radius:99px; font-size:10px; font-weight:800; text-transform:uppercase; border:2px solid transparent; cursor:pointer; transition:all 0.15s; -webkit-user-select:none; user-select:none; }
+        .condition-tag:active { transform:scale(0.93); }
+        .condition-tag.active { border-color:currentColor; }
+        .fresh-sap-row { display:flex; justify-content:space-between; align-items:center; padding:6px 10px; border-radius:8px; font-size:11px; }
+        .fresh-sap-row:nth-child(odd) { background:#f8fafc; }
+        .fresh-header { background:linear-gradient(135deg,#0e7490,#0891b2); color:white; }
 
-        /* ===== METRICS ===== */
-        .metrics-row { display: flex; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-        .metric { flex: 1; background: var(--surface); padding: 14px 16px; min-width: 0; }
-        .metric .m-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); white-space: nowrap; }
-        .metric .m-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; margin-top: 3px; line-height: 1; color: var(--text); }
-        .metric .m-sub { font-size: 9px; font-weight: 600; color: var(--text-3); margin-top: 3px; }
-        .metric .m-value.green { color: var(--green); }
-        .metric .m-value.red { color: var(--red); }
-        .metric .m-value.amber { color: var(--amber); }
-        .metric .m-value.purple { color: var(--purple); }
-        .metric .m-value.cyan { color: var(--cyan); }
-        .metric .m-value.accent { color: var(--accent); }
+        /* Fresh checklist items */
+        .fresh-hu-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:12px; border:2px solid #e2e8f0; background:white; transition:all 0.15s; }
+        .fresh-hu-item:active { transform:scale(0.98); }
+        .fresh-hu-item.checked { border-color:#a7f3d0; background:linear-gradient(135deg,#ecfdf5,#fff 60%); }
+        .fresh-hu-item.missing { border-color:#fca5a5; background:#fef2f2; opacity:0.7; }
+        .fresh-check { width:28px; height:28px; border-radius:8px; border:2px solid #cbd5e1; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; color:white; transition:all 0.15s; flex-shrink:0; }
+        .fresh-check.on { background:#059669; border-color:#059669; }
+        .fresh-check.miss { background:#dc2626; border-color:#dc2626; }
+        .fresh-hu-qty { width:70px; text-align:center; font-size:18px; font-weight:900; color:#1e40af; background:#eff6ff; border:2px solid #bfdbfe; border-radius:10px; padding:6px 4px; outline:none; font-family:'JetBrains Mono',monospace; }
+        .fresh-hu-qty:focus { border-color:#2563eb; }
 
-        /* ===== LAYOUT ===== */
-        .main-layout { flex: 1; display: flex; overflow: hidden; }
-
-        /* ===== SIDEBAR ===== */
-        .sidebar { width: 272px; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; background: var(--surface); }
-        .sidebar::-webkit-scrollbar { width: 0; }
-        .sb-section { padding: 16px; border-bottom: 1px solid var(--border); }
-        .sb-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3); margin-bottom: 10px; }
-
-        /* Upload */
-        .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); }
-        .upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
-        .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-light); border-style: solid; }
-        .upload-zone.uploading { border-color: var(--amber); background: var(--amber-bg); pointer-events: none; }
-        .upload-zone.success { border-color: var(--green); background: var(--green-bg); }
-        .upload-zone p { font-size: 11px; font-weight: 700; color: var(--text-2); }
-        .upload-zone .uz-icon { font-size: 22px; margin-bottom: 4px; }
-        .upload-zone .uz-sub { font-size: 9px; color: var(--text-3); font-weight: 600; margin-top: 3px; }
-
-        /* Aisle picker */
-        .aisle-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-        .aisle-pick { width: 30px; height: 30px; border-radius: 7px; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-3); border: 1.5px solid var(--border); transition: all 0.15s; }
-        .aisle-pick.on { background: var(--accent); color: white; border-color: var(--accent); }
-        .sb-input { width: 100%; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text); outline: none; }
-        .sb-input:focus { border-color: var(--accent); }
-        .sb-input::placeholder { color: var(--text-3); }
-        .sb-btn { width: 100%; padding: 10px 0; border-radius: var(--radius-sm); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; transition: opacity 0.15s; }
-        .sb-btn:hover { opacity: 0.85; }
-        .sb-btn.primary { background: var(--accent); color: white; }
-        .sb-btn.muted { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
-
-        /* Trackers */
-        .tracker { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow-sm); }
-        .tracker:hover { border-color: var(--text-3); }
-        .tracker.sel { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
-        .tracker-top { display: flex; justify-content: space-between; align-items: center; }
-        .tracker-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-        .tracker-nums { display: flex; align-items: baseline; gap: 4px; }
-        .tracker-total { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700; }
-        .tracker-resolved { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--green); }
-        .tracker-bar { height: 3px; background: var(--surface-3); border-radius: 2px; margin-top: 8px; overflow: hidden; }
-        .tracker-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
-
-        /* Counters */
-        .counter-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 4px; }
-        .counter-name { font-size: 12px; font-weight: 700; }
-        .counter-stats { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: var(--text-3); }
-
-        /* Map */
-        .map-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
-        .map-cell { height: 30px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: var(--text-3); transition: border-color 0.15s; }
-        .map-cell:hover { border-color: var(--accent); }
-        .map-cell .cell-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(59,108,245,0.12), transparent); transition: height 0.5s; }
-
-        /* ===== CONTENT ===== */
-        .content { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
-
-        /* Tabs */
-        .tab-row { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; overflow-x: auto; }
-        .tab-row::-webkit-scrollbar { display: none; }
-        .tab { padding: 13px 18px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; position: relative; transition: color 0.2s; border: none; background: none; }
-        .tab.active { color: var(--accent); }
-        .tab.active::after { content: ''; position: absolute; bottom: 0; left: 10px; right: 10px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
-        .tab .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; font-size: 9px; font-weight: 800; margin-left: 5px; padding: 0 5px; }
-
-        /* Search */
-        .search-row { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
-        .search-input { flex: 1; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 9px 14px; font-size: 12px; font-weight: 600; color: var(--text); outline: none; }
-        .search-input:focus { border-color: var(--accent); }
-        .search-input::placeholder { color: var(--text-3); }
-
-        /* Bulk */
-        .bulk-bar { display: none; padding: 8px 20px; background: var(--accent-light); border-bottom: 1px solid rgba(59,108,245,0.15); flex-shrink: 0; align-items: center; justify-content: space-between; }
-        .bulk-bar.show { display: flex; }
-        .bulk-select { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 28px 7px 10px; font-size: 11px; font-weight: 700; color: var(--text); outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239898a6' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
-        .bulk-apply { background: var(--accent); color: white; padding: 7px 16px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
-
-        /* Table */
-        .table-wrap { flex: 1; overflow-y: auto; background: var(--surface); }
-        table { width: 100%; border-collapse: collapse; }
-        thead { position: sticky; top: 0; z-index: 5; background: var(--surface); }
-        th { padding: 10px 14px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); text-align: left; border-bottom: 2px solid var(--border); }
-        td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 500; vertical-align: middle; }
-        tbody tr { transition: background 0.1s; }
-        tbody tr:hover { background: var(--surface-2); }
-        tbody tr.selected { background: var(--accent-light); }
-
-        /* Status tags */
-        .status-tag { display: inline-flex; padding: 4px 10px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .status-tag.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-        .status-tag.miss { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-        .status-tag.adj { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
-        .status-tag.move { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
-        .status-tag.inactive { background: var(--cyan-bg); color: var(--cyan); border: 1px solid var(--cyan-border); }
-        .status-tag.accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
-        .status-tag.declined { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-        .status-tag.pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
-
-        /* Resolve */
-        .resolve-sel { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 28px 7px 10px; font-size: 11px; font-weight: 700; color: var(--text); outline: none; cursor: pointer; appearance: none; transition: border-color 0.15s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239898a6' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
-        .resolve-sel:hover { border-color: var(--accent); }
-        .resolved-badge { display: inline-flex; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; background: var(--green-bg); color: var(--green); border: 1.5px solid var(--green-border); }
-
-        /* Photo */
-        .photo-thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; background: var(--surface-2); }
-        .photo-thumb:hover { border-color: var(--accent); transform: scale(1.1); }
-        .photo-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 40px; cursor: pointer; }
-        .photo-overlay img { max-width: 100%; max-height: 100%; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-
-        /* Detail panel */
-        .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 380px; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 40px rgba(0,0,0,0.08); z-index: 100; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); overflow-y: auto; }
-        .detail-panel.open { transform: translateX(0); }
-        .detail-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 5; }
-        .detail-close { background: var(--surface-2); color: var(--text-3); width: 32px; height: 32px; border-radius: 8px; font-size: 14px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
-        .detail-body { padding: 20px; }
-        .df { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 6px; }
-        .df .df-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); }
-        .df .df-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
-
-        /* Empty */
-        .empty-state { text-align: center; padding: 60px 32px; }
-        .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
-        .empty-state p { color: var(--text-3); font-size: 13px; font-weight: 600; }
-
-        /* Assign items */
-        .assign-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--surface-2); margin-bottom: 4px; font-size: 10px; font-weight: 700; }
+        /* Notification banner */
+        .notif-banner { background:linear-gradient(135deg,#1e40af,#2563eb); color:white; padding:12px 16px; display:flex; flex-direction:column; gap:8px; box-shadow:0 4px 20px rgba(37,99,235,0.3); z-index:55; }
+        .notif-banner.urgent { background:linear-gradient(135deg,#dc2626,#ef4444); box-shadow:0 4px 20px rgba(239,68,68,0.3); }
+        @keyframes notif-slide { 0%{transform:translateY(-100%);opacity:0} 100%{transform:translateY(0);opacity:1} }
+        .notif-enter { animation:notif-slide 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+        @keyframes notif-pulse { 0%,100%{opacity:1} 50%{opacity:0.7} }
+        .notif-icon-pulse { animation:notif-pulse 1.5s infinite; }
     </style>
 </head>
-<body>
+<body class="bg-slate-50 flex flex-col h-[100dvh] overflow-hidden">
 
-<div id="photo-overlay" class="photo-overlay" style="display:none" onclick="closePhoto()"><img id="photo-img" src=""></div>
-
-<div id="detail-panel" class="detail-panel">
-    <div class="detail-header"><span style="font-size:16px;font-weight:800;">Item Detail</span><button class="detail-close" onclick="closeDetail()">✕</button></div>
-    <div id="detail-body" class="detail-body"></div>
+<div id="toast" class="px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-2xl flex items-center gap-2">
+    <span id="toast-icon">✓</span><span id="toast-text">Synced</span>
 </div>
 
-<div class="top-bar">
-    <div style="display:flex;align-items:center;gap:12px;">
-        <span style="font-size:20px;">📊</span>
-        <div><h1>Control Center</h1><div class="top-bar-sub">Cycle Count 2.0</div></div>
+<header class="bg-slate-900 text-white px-4 py-3 shrink-0 z-50 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+        <div class="bg-blue-600 w-9 h-9 rounded-xl flex items-center justify-center text-lg">📦</div>
+        <div><h1 class="text-sm font-black uppercase tracking-tight leading-none">SAP Auditor</h1><p class="text-[9px] text-blue-400 font-bold uppercase tracking-widest">Floor Unit</p></div>
     </div>
-    <div class="top-bar-right">
-        <div id="sap-freshness" class="freshness none">No SAP Data</div>
-        <div id="sync-pill" class="sync-pill"><div class="dot"></div><span id="sync-label">Live</span></div>
-        <button onclick="exportExcel()" class="export-btn">Export</button>
+    <div class="flex items-center gap-2">
+        <div id="sync-indicator" class="relative"><div id="sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></div><div id="queue-count" class="queue-badge hidden">0</div></div>
+        <button id="auditor-name-btn" onclick="showAuditorModal()" class="bg-slate-800 text-slate-300 px-3 py-2 text-[10px] font-black rounded-lg uppercase truncate max-w-[80px]">👤 —</button>
+        <button onclick="clearAllData()" class="bg-slate-800/50 text-slate-500 px-3 py-2 text-[10px] font-black rounded-lg uppercase">Reset</button>
+    </div>
+</header>
+
+<nav class="bg-white border-b flex p-1.5 shrink-0 gap-1">
+    <button id="nav-audit" onclick="switchView('audit')" class="nav-pill active flex-1 py-3 text-[10px] font-black uppercase rounded-xl">Audit</button>
+    <button id="nav-report" onclick="switchView('report')" class="nav-pill flex-1 py-3 text-[10px] font-black uppercase text-slate-400 bg-slate-50 rounded-xl">Report</button>
+</nav>
+
+<!-- Notification Banner (hidden by default, shown when new pending assignments arrive) -->
+<div id="notif-container" class="shrink-0" style="display:none;"></div>
+
+<!-- ===== AUDIT VIEW (Standard Bin Mode) ===== -->
+<main id="view-audit" class="flex-1 flex flex-col overflow-hidden relative">
+    <div id="setup-screen" class="absolute inset-0 bg-slate-50 z-[60] flex flex-col overflow-y-auto">
+        <div id="upload-prompt" class="flex-1 flex flex-col items-center justify-center text-center p-8">
+            <div class="w-20 h-20 bg-blue-100 rounded-3xl flex items-center justify-center text-4xl mb-6" id="load-icon">📋</div>
+            <h2 id="load-title" class="text-2xl font-black uppercase mb-1 text-slate-800">Loading SAP Data...</h2>
+            <p id="load-subtitle" class="text-sm text-slate-400 font-medium mb-6">Checking cloud for latest data</p>
+            <div id="load-spinner" class="mb-6"><div style="width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;"></div></div>
+            <div id="load-actions" class="hidden space-y-3">
+                <button onclick="pullCloudSAPData()" class="bg-blue-600 text-white py-4 px-12 rounded-2xl font-black uppercase text-sm shadow-xl active:scale-95 transition-transform inline-block">↻ Retry Cloud Pull</button>
+                <p class="text-[10px] text-slate-300 font-bold uppercase">— or upload manually —</p>
+                <input type="file" id="sap-upload-main" accept=".xlsx,.xls,.csv" class="hidden" onchange="handleFileUpload(event)">
+                <label for="sap-upload-main" class="bg-slate-200 text-slate-600 py-3 px-8 rounded-2xl font-black uppercase text-xs cursor-pointer active:scale-95 transition-transform inline-block">Select Local File</label>
+            </div>
+            <!-- Data freshness info -->
+            <div id="load-meta" class="hidden mt-4 bg-white border rounded-xl p-3 text-left w-full max-w-xs">
+                <p class="text-[9px] font-black text-emerald-600 uppercase mb-1">Cloud Data Available</p>
+                <p class="text-[10px] text-slate-500 font-semibold">📅 <span id="load-meta-time">—</span></p>
+                <p class="text-[10px] text-slate-500 font-semibold">📊 <span id="load-meta-rows">—</span> items</p>
+            </div>
+        </div>
+        <div id="row-selection" class="hidden p-5 pb-8 space-y-5">
+            <div class="bg-slate-900 text-white p-5 rounded-2xl shadow-xl">
+                <div class="flex justify-between items-center mb-3"><span id="week-display" class="bg-blue-600 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest">Today</span><span id="day-display" class="text-[10px] font-bold uppercase text-slate-400"></span></div>
+                <p class="text-[10px] font-black uppercase text-blue-400 mb-3 tracking-widest">Assigned Counts</p>
+                <div id="schedule-list" class="space-y-1.5"></div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border shadow-sm">
+                <p class="text-[10px] font-black uppercase text-slate-400 mb-2 tracking-widest">Product Lookup</p>
+                <div class="flex gap-2">
+                    <input type="text" id="prod-cycle-input" placeholder="Enter Product #" class="flex-1 p-4 bg-slate-50 border-2 rounded-xl mono text-sm outline-none focus:border-blue-500">
+                    <button onclick="startProductCycle()" class="bg-orange-500 text-white px-5 rounded-xl font-black text-[10px] uppercase shadow-lg active:scale-95">Go</button>
+                </div>
+            </div>
+            <div class="flex justify-between items-end"><h2 class="text-xl font-black uppercase text-slate-800">Select Aisle</h2><span id="total-progress" class="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-full">0 Done</span></div>
+            <div class="grid grid-cols-4 gap-3" id="row-grid"></div>
+            <div class="flex gap-2">
+                <div class="flex-1 bg-white border rounded-xl p-3 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Loaded</p><p id="stat-loaded" class="text-lg font-black text-slate-700 mono">0</p></div>
+                <div class="flex-1 bg-white border rounded-xl p-3 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Bins</p><p id="stat-bins" class="text-lg font-black text-slate-700 mono">0</p></div>
+                <div class="flex-1 bg-white border rounded-xl p-3 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Queued</p><p id="stat-queued" class="text-lg font-black text-orange-600 mono">0</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bin Header (standard mode) -->
+    <div id="bin-header" class="px-4 py-3 bg-white border-b shrink-0">
+        <div class="flex gap-2 items-center">
+            <button onclick="stepBin(-1)" class="bin-nav-btn bg-slate-100 text-slate-400 active:bg-slate-200">◀</button>
+            <div class="flex-1 relative"><input type="text" id="bin-input" placeholder="SCAN BIN..." class="w-full py-3.5 px-5 bg-slate-50 border-2 rounded-xl text-lg mono text-blue-700 font-bold uppercase outline-none focus:border-blue-400" onchange="selectBin(this.value)"><span id="bin-done-badge" class="hidden absolute right-3 top-1/2 -translate-y-1/2 bg-emerald-500 text-white text-[8px] font-black px-2 py-1 rounded-lg">DONE</span></div>
+            <button onclick="stepBin(1)" class="bin-nav-btn bg-slate-100 text-slate-400 active:bg-slate-200">▶</button>
+        </div>
+        <div class="mt-2 flex items-center gap-3"><div class="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden"><div id="bin-progress-bar" class="h-full bg-blue-500 rounded-full transition-all duration-500" style="width:0%"></div></div><span id="bin-progress-text" class="text-[10px] font-black text-slate-400 mono min-w-[50px] text-right">0 / 0</span></div>
+    </div>
+    <div id="audit-list" class="flex-1 overflow-y-auto p-4 space-y-3 pb-[260px]"></div>
+
+    <!-- Bottom Bar (standard mode) -->
+    <div id="standard-bottom-bar" class="fixed bottom-0 left-0 right-0 bottom-bar p-4 shadow-2xl z-50">
+        <div class="flex gap-2 mb-3">
+            <button onclick="toggleAddForm()" class="flex-1 bg-white border-2 border-orange-500 text-orange-600 py-3.5 rounded-xl font-black uppercase text-[11px] active:scale-[0.97]">+ Found Item</button>
+            <button onclick="confirmAllRemaining()" id="btn-confirm-all" class="flex-1 bg-emerald-50 border-2 border-emerald-300 text-emerald-700 py-3.5 rounded-xl font-black uppercase text-[11px] active:scale-[0.97] hidden">✓ Confirm All</button>
+            <button onclick="leaveAisle()" class="w-14 bg-slate-100 text-slate-500 rounded-xl flex items-center justify-center text-lg border border-slate-200 active:bg-slate-200">🚪</button>
+        </div>
+        <button onclick="finalizeBin()" class="w-full bg-blue-600 text-white rounded-xl font-black uppercase text-sm shadow-xl active:scale-[0.98] flex items-center justify-center gap-2" style="padding:18px 0;"><span>Finalize & Next Bin</span><span class="swipe-hint text-white/50">→</span></button>
+    </div>
+</main>
+
+<!-- ===== FRESH COUNT VIEW ===== -->
+<main id="view-fresh" class="flex-1 flex flex-col overflow-hidden hidden">
+    <!-- Fresh Header -->
+    <div class="fresh-header px-4 py-4 shrink-0">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-lg font-black uppercase tracking-tight">🧊 Fresh Count</h2>
+                <p id="fresh-progress-text" class="text-[10px] font-bold text-cyan-100">0 / 0 items checked</p>
+            </div>
+            <button onclick="leaveFresh()" class="bg-white/20 text-white px-3 py-2 rounded-lg text-[10px] font-black uppercase">✕ Exit</button>
+        </div>
+    </div>
+    
+    <!-- Fresh List -->
+    <div id="fresh-list" class="flex-1 overflow-y-auto p-4 space-y-3 pb-[200px]"></div>
+    
+    <!-- Fresh Bottom Bar -->
+    <div class="fixed bottom-0 left-0 right-0 bottom-bar p-4 shadow-2xl z-50" id="fresh-bottom-bar" style="display:none;">
+        <div class="flex gap-2 mb-3">
+            <div class="flex-1 bg-white border rounded-xl p-2 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">SAP Total</p>
+                <p id="fresh-sap-total" class="text-lg font-black text-slate-600 mono">0</p>
+            </div>
+            <div class="flex-1 bg-white border rounded-xl p-2 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">Your Count</p>
+                <p id="fresh-count-total" class="text-lg font-black text-blue-600 mono">0</p>
+            </div>
+            <div class="flex-1 bg-white border rounded-xl p-2 text-center">
+                <p class="text-[8px] font-black text-slate-400 uppercase">Variance</p>
+                <p id="fresh-variance-total" class="text-lg font-black mono">0</p>
+            </div>
+        </div>
+        <button onclick="finalizeFresh()" class="w-full bg-cyan-600 text-white rounded-xl font-black uppercase text-sm shadow-xl active:scale-[0.98] flex items-center justify-center gap-2" style="padding:18px 0;">
+            <span>Submit Fresh Count</span>
+        </button>
+    </div>
+</main>
+
+<!-- ===== REPORT VIEW ===== -->
+<main id="view-report" class="flex-1 flex flex-col overflow-hidden hidden">
+    <div class="p-4 space-y-3 overflow-y-auto flex-1">
+        <div class="flex gap-2">
+            <div class="flex-1 bg-white border rounded-xl p-4 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Finalized</p><p id="rpt-finalized" class="text-2xl font-black text-blue-600 mono">0</p><p class="text-[9px] text-slate-400 font-bold">bins</p></div>
+            <div class="flex-1 bg-white border rounded-xl p-4 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Discrepancies</p><p id="rpt-discrep" class="text-2xl font-black text-red-500 mono">0</p><p class="text-[9px] text-slate-400 font-bold">items</p></div>
+            <div class="flex-1 bg-white border rounded-xl p-4 text-center"><p class="text-[9px] font-black text-slate-400 uppercase">Accuracy</p><p id="rpt-accuracy" class="text-2xl font-black text-emerald-600 mono">—</p><p class="text-[9px] text-slate-400 font-bold">raw</p></div>
+        </div>
+        <div id="report-list" class="space-y-2"></div>
+    </div>
+</main>
+
+<!-- ===== MODALS (same as before) ===== -->
+<div id="add-item-modal" class="hidden fixed inset-0 modal-backdrop z-[110] p-4 flex items-end sm:items-center justify-center">
+    <div class="bg-white w-full max-w-sm rounded-t-3xl sm:rounded-3xl p-6 space-y-4 shadow-2xl">
+        <div class="flex justify-between items-center"><h2 class="text-xl font-black uppercase">Found Item</h2><span id="smart-fill-badge" class="hidden bg-green-100 text-green-700 text-[9px] font-black px-2 py-1 rounded-full">Auto-filled</span></div>
+        <div class="space-y-3">
+            <div><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">HU Number</label><input type="text" id="add-hu" placeholder="Scan or type (0 if missing)" class="w-full p-3.5 bg-slate-50 border-2 rounded-xl mono font-bold outline-none focus:border-blue-500 mt-1" oninput="autoLookupExtra(this)"></div>
+            <div class="grid grid-cols-2 gap-2"><div><label class="text-[9px] font-black text-slate-400 uppercase ml-1">Item #</label><input type="text" id="add-prod" placeholder="Product" class="w-full p-3.5 bg-slate-50 border-2 rounded-xl outline-none mt-1"></div><div><label class="text-[9px] font-black text-slate-400 uppercase ml-1">Batch</label><input type="text" id="add-batch" placeholder="Batch" class="w-full p-3.5 bg-slate-50 border-2 rounded-xl outline-none mt-1"></div></div>
+            <div><label class="text-[9px] font-black text-slate-400 uppercase ml-1">Physical Count</label><input type="number" id="add-qty" placeholder="0" class="w-full p-5 bg-blue-50 border-2 border-blue-200 rounded-xl font-black text-center text-3xl text-blue-700 outline-none mt-1"></div>
+        </div>
+        <div class="flex gap-3 pt-2"><button onclick="toggleAddForm()" class="flex-1 py-4 text-slate-400 font-black uppercase text-[10px]">Cancel</button><button onclick="submitExtra()" class="flex-[2] bg-orange-500 text-white py-4 rounded-xl font-black uppercase shadow-lg active:scale-[0.97]">Add Item</button></div>
     </div>
 </div>
 
-<div class="metrics-row">
-    <div class="metric"><div class="m-label">Inv. Accuracy</div><div id="m-inv-raw" class="m-value">—</div><div class="m-sub">raw</div></div>
-    <div class="metric"><div class="m-label">Inv. Accuracy</div><div id="m-inv-res" class="m-value green">—</div><div class="m-sub">resolved</div></div>
-    <div class="metric"><div class="m-label">Bin Accuracy</div><div id="m-bin-raw" class="m-value">—</div><div class="m-sub">raw</div></div>
-    <div class="metric"><div class="m-label">Bin Accuracy</div><div id="m-bin-res" class="m-value green">—</div><div class="m-sub">resolved</div></div>
-    <div class="metric"><div class="m-label">Progress</div><div id="m-progress" class="m-value accent">0%</div><div id="m-progress-sub" class="m-sub">0 bins</div></div>
-    <div class="metric"><div class="m-label">Open Actions</div><div id="m-open" class="m-value amber">0</div><div class="m-sub">unresolved</div></div>
-    <div class="metric"><div class="m-label">Count Rate</div><div id="m-rate" class="m-value cyan">—</div><div id="m-rate-sub" class="m-sub">bins/hr</div></div>
-    <div class="metric"><div class="m-label">Photos</div><div id="m-photos" class="m-value">0</div><div class="m-sub">attached</div></div>
+<div id="note-modal" class="hidden fixed inset-0 modal-backdrop z-[110] flex flex-col">
+    <div class="flex-1 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="p-5 pb-3 shrink-0"><div class="flex justify-between items-center mb-1"><h2 class="text-lg font-black uppercase text-slate-800">Note & Photo</h2><span id="photo-upload-status" class="hidden text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-full"></span></div><p id="note-modal-context" class="text-[11px] text-slate-500 font-semibold"></p></div>
+            <div class="flex-1 overflow-y-auto px-5 space-y-4 pb-5">
+                <div><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Note</label><textarea id="note-text" rows="2" placeholder="Describe issue..." class="w-full p-3 bg-slate-50 border-2 rounded-xl outline-none text-sm resize-none focus:border-blue-500 mt-1"></textarea></div>
+                <div><label class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Photo Evidence</label>
+                    <div class="mt-2">
+                        <div id="photo-capture-area"><div id="photo-empty-state" class="flex gap-2"><input type="file" id="camera-input" accept="image/*" capture="environment" class="hidden" onchange="handlePhotoCapture(event)"><label for="camera-input" class="flex-1 bg-blue-50 border-2 border-dashed border-blue-200 rounded-xl py-6 flex flex-col items-center gap-1 cursor-pointer active:bg-blue-100"><span class="text-2xl">📷</span><span class="text-[10px] font-black text-blue-600 uppercase">Take Photo</span></label><input type="file" id="gallery-input" accept="image/*" class="hidden" onchange="handlePhotoCapture(event)"><label for="gallery-input" class="flex-1 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl py-6 flex flex-col items-center gap-1 cursor-pointer active:bg-slate-100"><span class="text-2xl">🖼️</span><span class="text-[10px] font-black text-slate-500 uppercase">Gallery</span></label></div></div>
+                        <div id="photo-editor" class="hidden"><div class="annotation-layer rounded-xl overflow-hidden border-2 border-slate-200 bg-slate-100" id="annotation-container" style="position:relative;"><img id="photo-preview" class="w-full block" style="max-height:300px;object-fit:contain;background:#f1f5f9;"><canvas id="annotation-canvas"></canvas></div><div class="flex items-center justify-between mt-3 px-1"><div class="flex items-center gap-2"><div class="color-dot active" style="background:#ef4444" onclick="setAnnotColor('#ef4444',this)"></div><div class="color-dot" style="background:#2563eb" onclick="setAnnotColor('#2563eb',this)"></div><div class="color-dot" style="background:#16a34a" onclick="setAnnotColor('#16a34a',this)"></div><div class="color-dot" style="background:#000" onclick="setAnnotColor('#000',this)"></div><div class="w-px h-6 bg-slate-200 mx-1"></div><button onclick="setAnnotSize(3)" id="pen-thin" class="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">Thin</button><button onclick="setAnnotSize(6)" id="pen-med" class="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">Med</button><button onclick="setAnnotSize(12)" id="pen-thick" class="text-[9px] font-black text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">Thick</button></div><div class="flex gap-1"><button onclick="undoAnnotation()" class="text-[10px] font-black text-slate-400 bg-white border px-3 py-1.5 rounded-lg">Undo</button><button onclick="clearAnnotations()" class="text-[10px] font-black text-red-400 bg-white border px-3 py-1.5 rounded-lg">Clear</button></div></div><button onclick="removePhoto()" class="w-full mt-2 py-2 text-[10px] font-black text-red-400 uppercase">✕ Remove Photo</button></div>
+                    </div>
+                </div>
+            </div>
+            <div class="p-5 pt-3 border-t flex gap-3 shrink-0"><button onclick="closeNoteModal()" class="flex-1 py-3.5 text-slate-400 font-black uppercase text-[10px]">Cancel</button><button onclick="saveNoteAndPhoto()" class="flex-[2] bg-blue-600 text-white py-3.5 rounded-xl font-black uppercase shadow-lg active:scale-[0.97]">Save</button></div>
+        </div>
+    </div>
 </div>
 
-<div class="main-layout">
-    <aside class="sidebar slim-scroll">
-        <div class="sb-section">
-            <div class="sb-title">SAP Data Feed</div>
-            <div id="upload-zone" class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');handleUpload(event.dataTransfer.files[0])" onclick="document.getElementById('sap-file').click()">
-                <input type="file" id="sap-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleUpload(this.files[0]);this.value=''">
-                <div id="uz-default"><div class="uz-icon">📂</div><p>Drop SAP Export</p><div class="uz-sub">or click to browse</div></div>
-                <div id="uz-loading" style="display:none"><div class="uz-icon">⏳</div><p style="color:var(--amber)">Uploading...</p></div>
-                <div id="uz-success" style="display:none"><div class="uz-icon">✅</div><p style="color:var(--green)">Data Live</p><div id="uz-detail" class="uz-sub"></div></div>
-            </div>
-            <div id="sap-meta" style="display:none;margin-top:6px;font-size:9px;font-weight:600;color:var(--text-3);">
-                <div>📅 <span id="meta-time">—</span></div>
-                <div>👤 <span id="meta-user">—</span></div>
-                <div>📊 <span id="meta-rows">—</span> items</div>
-            </div>
-        </div>
-        <div class="sb-section">
-            <div class="sb-title">Assign Counts</div>
-            <div style="margin-bottom:6px;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Aisles</div>
-            <div class="aisle-grid" id="aisle-picker"></div>
-            <div style="margin:8px 0 4px;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Product</div>
-            <div style="display:flex;gap:5px;margin-bottom:8px;">
-                <input type="text" id="assign-prod" placeholder="e.g. 3307506" class="sb-input mono" style="flex:1;">
-                <button onclick="addProdAssign()" style="background:var(--amber);color:white;padding:5px 10px;border-radius:var(--radius-sm);font-size:10px;font-weight:800;">+</button>
-            </div>
-            <div style="display:flex;gap:5px;margin-bottom:8px;">
-                <button onclick="pushAssignments()" class="sb-btn primary" style="flex:2">Push</button>
-                <button onclick="clearAssignments()" class="sb-btn muted" style="flex:1">Clear</button>
-            </div>
-            <div id="assign-list"></div>
-        </div>
-        <div class="sb-section">
-            <div class="sb-title">Action Tracker</div>
-            <div id="tracker-move" class="tracker" onclick="setTab('move')"><div class="tracker-top"><span class="tracker-label" style="color:var(--purple)">Movements</span><div class="tracker-nums"><span id="t-move-total" class="tracker-total" style="color:var(--purple)">0</span><span id="t-move-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-move-bar" class="tracker-bar-fill" style="width:0%;background:var(--purple)"></div></div></div>
-            <div id="tracker-adj" class="tracker" onclick="setTab('adj')"><div class="tracker-top"><span class="tracker-label" style="color:var(--amber)">Adjustments</span><div class="tracker-nums"><span id="t-adj-total" class="tracker-total" style="color:var(--amber)">0</span><span id="t-adj-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-adj-bar" class="tracker-bar-fill" style="width:0%;background:var(--amber)"></div></div></div>
-            <div id="tracker-miss" class="tracker" onclick="setTab('miss')"><div class="tracker-top"><span class="tracker-label" style="color:var(--red)">Missing</span><div class="tracker-nums"><span id="t-miss-total" class="tracker-total" style="color:var(--red)">0</span><span id="t-miss-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-miss-bar" class="tracker-bar-fill" style="width:0%;background:var(--red)"></div></div></div>
-            <div id="tracker-inactive" class="tracker" onclick="setTab('inactive')"><div class="tracker-top"><span class="tracker-label" style="color:var(--cyan)">Extra</span><div class="tracker-nums"><span id="t-inactive-total" class="tracker-total" style="color:var(--cyan)">0</span><span id="t-inactive-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-inactive-bar" class="tracker-bar-fill" style="width:0%;background:var(--cyan)"></div></div></div>
-        </div>
-        <div class="sb-section">
-            <div class="sb-title">Active Counters</div>
-            <div id="counter-list"><div style="font-size:10px;color:var(--text-3);font-weight:600;">Waiting...</div></div>
-        </div>
-        <div class="sb-section">
-            <div class="sb-title">Aisle Map</div>
-            <div class="map-grid" id="aisle-map"></div>
-        </div>
-    </aside>
+<div id="bin-move-modal" class="hidden fixed inset-0 modal-backdrop z-[110] p-4 flex items-center justify-center">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 space-y-4 shadow-2xl"><h2 class="text-lg font-black uppercase text-slate-800">Record Bin Move</h2><p id="move-modal-context" class="text-[11px] text-slate-500 font-semibold"></p><div class="bg-slate-50 p-3 rounded-xl border-2"><p class="text-[9px] font-black uppercase text-slate-400">SAP Bin</p><p id="move-sap-bin" class="mono font-black text-slate-700"></p></div><input type="text" id="move-actual-bin" placeholder="Scan Actual Bin" class="w-full p-4 bg-blue-50 border-2 border-blue-200 rounded-xl mono font-bold text-blue-700 uppercase outline-none focus:border-blue-500 text-center text-lg"><div class="flex gap-3"><button onclick="closeBinMoveModal()" class="flex-1 py-3.5 text-slate-400 font-black uppercase text-[10px]">Cancel</button><button onclick="saveBinMove()" class="flex-[2] bg-purple-600 text-white py-3.5 rounded-xl font-black uppercase shadow-lg">Confirm</button></div></div>
+</div>
+<div id="auditor-modal" class="hidden fixed inset-0 modal-backdrop z-[120] p-4 flex items-center justify-center"><div class="bg-white w-full max-w-xs rounded-3xl p-6 space-y-4 shadow-2xl"><h2 class="text-lg font-black uppercase text-slate-800">Your Name</h2><input type="text" id="auditor-name-input" placeholder="e.g. Albert" class="w-full p-4 bg-slate-50 border-2 rounded-xl font-bold outline-none focus:border-blue-500 text-center text-lg"><button onclick="saveAuditorName()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-black uppercase shadow-lg">Save</button></div></div>
+<div id="photo-viewer" class="hidden fixed inset-0 bg-black/90 z-[130] flex items-center justify-center p-4" onclick="this.classList.add('hidden')"><img id="photo-viewer-img" class="max-w-full max-h-full rounded-xl shadow-2xl"></div>
 
-    <div class="content">
-        <div class="tab-row">
-            <button onclick="setTab('move')" id="tab-move" class="tab active">Movements <span class="badge" style="background:var(--purple-bg);color:var(--purple)" id="c-move">0</span></button>
-            <button onclick="setTab('adj')" id="tab-adj" class="tab">Adjustments <span class="badge" style="background:var(--amber-bg);color:var(--amber)" id="c-adj">0</span></button>
-            <button onclick="setTab('miss')" id="tab-miss" class="tab">Missing <span class="badge" style="background:var(--red-bg);color:var(--red)" id="c-miss">0</span></button>
-            <button onclick="setTab('inactive')" id="tab-inactive" class="tab">Extra <span class="badge" style="background:var(--cyan-bg);color:var(--cyan)" id="c-inactive">0</span></button>
-            <button onclick="setTab('ok')" id="tab-ok" class="tab">OK <span class="badge" style="background:var(--green-bg);color:var(--green)" id="c-ok">0</span></button>
-            <button onclick="setTab('triggers')" id="tab-triggers" class="tab">CC Triggers <span class="badge" style="background:var(--amber-bg);color:var(--amber)" id="c-triggers">0</span></button>
+<!-- Cycle Count Trigger Prompt -->
+<div id="cycle-count-prompt" class="hidden fixed inset-0 modal-backdrop z-[125] p-4 flex items-center justify-center">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl">
+        <div class="text-center mb-5">
+            <div class="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3">⚠️</div>
+            <h2 class="text-lg font-black uppercase text-slate-800">Unknown Item Found</h2>
+            <p class="text-[11px] text-slate-400 font-semibold mt-1" id="ccp-reason">No HU on material</p>
         </div>
-        <div class="search-row"><input type="text" id="search" class="search-input" placeholder="Search HU, product, bin, auditor..." oninput="render()"></div>
-        <div id="bulk-bar" class="bulk-bar">
-            <span style="font-size:11px;font-weight:700;color:var(--accent);"><span id="sel-count">0</span> selected</span>
-            <div style="display:flex;gap:6px;">
-                <select id="bulk-res" class="bulk-select"><option value="">— Resolution —</option><option>Item Moved</option><option>Item Adjusted</option><option>Max Volume</option><option>Bin does not exist</option><option>Mixed bin</option></select>
-                <button onclick="bulkResolve()" class="bulk-apply">Apply</button>
-                <button onclick="clearSel()" style="background:none;color:var(--text-3);font-size:10px;font-weight:700;padding:7px 10px;">Clear</button>
+        <div class="bg-slate-50 rounded-2xl p-4 space-y-2 mb-5">
+            <div class="flex justify-between items-center">
+                <span class="text-[9px] font-black text-slate-400 uppercase">Product</span>
+                <span id="ccp-product" class="mono font-black text-blue-600"></span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-[9px] font-black text-slate-400 uppercase">Description</span>
+                <span id="ccp-desc" class="text-[11px] font-semibold text-slate-600 text-right max-w-[180px] truncate"></span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-[9px] font-black text-slate-400 uppercase">Qty Found</span>
+                <span id="ccp-qty" class="mono font-black text-slate-700"></span>
             </div>
         </div>
-        <div class="table-wrap slim-scroll">
-            <table><thead><tr>
-                <th style="width:32px"><input type="checkbox" id="sel-all" onchange="toggleAll(this.checked)"></th>
-                <th>HU</th><th>Product</th><th>Bins</th><th>Qty</th><th>Evidence</th><th>Auditor</th><th style="text-align:right">Resolution</th>
-            </tr></thead><tbody id="tbody"></tbody></table>
-            <div id="empty" class="empty-state" style="display:none"><div class="es-icon">📭</div><p>No items in this category</p></div>
+        <p class="text-[11px] text-center text-slate-500 font-semibold mb-5">This item may be improperly consumed. Would you like to perform a <span class="font-black text-blue-600">full product cycle count</span> across all bins?</p>
+        <input type="hidden" id="ccp-product-val">
+        <div class="flex gap-3">
+            <button onclick="declineCycleCountTrigger()" class="flex-1 py-4 bg-slate-100 text-slate-500 rounded-xl font-black uppercase text-[10px] active:scale-[0.97] transition-all">Not Now</button>
+            <button onclick="acceptCycleCountTrigger()" class="flex-[2] py-4 bg-blue-600 text-white rounded-xl font-black uppercase text-sm shadow-lg active:scale-[0.97] transition-all">Count Now</button>
         </div>
     </div>
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
-const AISLES = {A:112,B:118,C:118,D:118,E:118,F:118,G:118,H:118,J:115,K:40,L:106,M:109,N:76,P:22};
-const TOTAL_BINS = Object.values(AISLES).reduce((a,b)=>a+b,0);
-const RES_OPTS = ["","Item Moved","Item Adjusted","Max Volume","Bin does not exist","Mixed bin"];
-const ROWS = "ABCDEFGHJKLMNP".split("");
-let tab='move', report=[], missing=[], triggers=[], sel=new Set();
-let assignAisles=new Set(), pendingAssigns=[], _liveAssigns=[];
+const API_URL = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
 
-function isRes(i){if(!i.verified)return false;const v=String(i.verified).trim().toLowerCase();return v&&v!=='false'&&v!=='true';}
-function ikey(i){return `${i.hu}|${i.scanBin}`;}
-function validPhoto(u){return u&&u!=='undefined'&&u!=='null'&&u.trim()!=='';}
+let ALL_SAP_BINS = [];
+const FRESH_SKUS = ["3305704","3307506","3307509","3307515","3307518","3307525","3307710","3308356","3309009","3309016","3309017","3309019","3309138","3309139"];
+let sapMasterData = JSON.parse(localStorage.getItem('sapMasterData'))||[];
+let sapBinIndex={}, sapHUIndex=new Map(), expandedBins=new Set();
+let currentBinItems=[], currentActiveBin="", cloudReport=[];
+let noteTargetIndex=null, binMoveTargetIndex=null;
+let auditorName=localStorage.getItem('auditorName')||"";
+let offlineQueue=JSON.parse(localStorage.getItem('offlineQueue'))||[];
+let annotCanvas,annotCtx,annotColor='#ef4444',annotSize=6,isDrawing=false,annotHistory=[],currentPhotoBase64=null;
 
-async function fetchData(){try{const r=await fetch(API);const d=await r.json();report=d.report||[];missing=d.missing||[];triggers=d.triggers||[];if(d.sapMeta)updateFreshness(d.sapMeta);if(d.assignments){_liveAssigns=d.assignments;renderAssigns();}if(!document.activeElement||!document.activeElement.classList.contains('resolve-sel'))render();updateStats();document.getElementById('sync-label').textContent='Live';document.querySelector('#sync-pill .dot').className='dot';}catch{document.getElementById('sync-label').textContent='Offline';document.querySelector('#sync-pill .dot').className='dot off';}}
+// ===== FRESH STATE =====
+let freshData = []; // [{sku, desc, items:[{hu,huShort,sapBin,sapQty,checked,missing,countQty}], expanded, note, ...}]
+let freshNoteTarget = null; // index into freshData
 
-function computeRate(){const bins=new Set(report.map(i=>i.scanBin).filter(Boolean));const bc=bins.size;if(!bc)return{rate:'—',sub:'bins/hr'};const now=Date.now();const ss=new Date();ss.setHours(6,0,0,0);const hrs=Math.max(0.5,(now-ss.getTime())/3600000);return{rate:(bc/hrs).toFixed(1),sub:`bins/hr · ${Math.round(hrs)}h`};}
+// ===== OFFLINE QUEUE =====
+function enqueuePost(p){offlineQueue.push(p);localStorage.setItem('offlineQueue',JSON.stringify(offlineQueue));updateQueueBadge();drainQueue();}
+async function drainQueue(){if(!offlineQueue.length)return;let ok=0;for(const p of[...offlineQueue]){try{const r=await fetch(API_URL,{method:'POST',body:JSON.stringify(p)});if(r.ok){ok++;offlineQueue.shift();}else break;}catch{break;}}localStorage.setItem('offlineQueue',JSON.stringify(offlineQueue));updateQueueBadge();if(ok>0)showToast(`${ok} synced`,'green');}
+function updateQueueBadge(){const el=document.getElementById('queue-count'),dot=document.getElementById('sync-dot'),sq=document.getElementById('stat-queued');if(offlineQueue.length>0){el.classList.remove('hidden');el.textContent=offlineQueue.length;dot.className='w-2 h-2 rounded-full bg-orange-400 sync-active';}else{el.classList.add('hidden');dot.className='w-2 h-2 rounded-full bg-emerald-400';}if(sq)sq.textContent=offlineQueue.length;}
 
-function updateStats(){const items=report.filter(i=>i.hu&&i.hu!=='EMPTY_BIN');const bins=new Set(report.map(i=>i.scanBin));let td=0;
-ROWS.forEach(r=>{const rc=Array.from(bins).filter(b=>b&&b.charAt(1)===r).length;const p=Math.min(100,Math.round((rc/(AISLES[r]||1))*100));const c=document.getElementById(`map-${r}`);if(c){const f=c.querySelector('.cell-fill');if(f)f.style.height=p+'%';}td+=rc;});
-document.getElementById('m-progress').textContent=Math.round((td/TOTAL_BINS)*100)+'%';document.getElementById('m-progress-sub').textContent=`${td} / ${TOTAL_BINS}`;
-if(!items.length)return;
-const isI=i=>i.type==='adj'||i.type==='miss'||i.type==='inactive';const isB=i=>i.type==='move'||i.type==='miss'||i.type==='inactive';
-document.getElementById('m-inv-raw').textContent=Math.round(((items.length-items.filter(isI).length)/items.length)*100)+'%';
-document.getElementById('m-inv-res').textContent=Math.round(((items.length-items.filter(i=>isI(i)&&!isRes(i)).length)/items.length)*100)+'%';
-document.getElementById('m-bin-raw').textContent=Math.round(((items.length-items.filter(isB).length)/items.length)*100)+'%';
-document.getElementById('m-bin-res').textContent=Math.round(((items.length-items.filter(i=>isB(i)&&!isRes(i)).length)/items.length)*100)+'%';
-document.getElementById('m-open').textContent=items.filter(i=>i.type!=='ok'&&!isRes(i)).length;
-document.getElementById('m-photos').textContent=items.filter(i=>validPhoto(i.photoUrl)).length;
-const{rate,sub}=computeRate();document.getElementById('m-rate').textContent=rate;document.getElementById('m-rate-sub').textContent=sub;
-['move','adj','miss','inactive'].forEach(t=>{const ti=items.filter(i=>i.type===t);const total=ti.length,res=ti.filter(isRes).length;document.getElementById(`t-${t}-total`).textContent=total;document.getElementById(`t-${t}-res`).textContent=`/${res}`;document.getElementById(`t-${t}-bar`).style.width=total>0?Math.round((res/total)*100)+'%':'0%';document.getElementById(`tracker-${t}`).classList.toggle('sel',tab===t);});
-document.getElementById('c-move').textContent=items.filter(i=>i.type==='move'&&!isRes(i)).length;document.getElementById('c-adj').textContent=items.filter(i=>i.type==='adj'&&!isRes(i)).length;document.getElementById('c-miss').textContent=items.filter(i=>i.type==='miss'&&!isRes(i)).length;document.getElementById('c-inactive').textContent=items.filter(i=>i.type==='inactive'&&!isRes(i)).length;document.getElementById('c-ok').textContent=items.filter(i=>i.type==='ok'||isRes(i)).length;document.getElementById('c-triggers').textContent=triggers.length;
-const ctr={};report.forEach(i=>{if(i.auditor&&i.auditor!=='undefined'){if(!ctr[i.auditor])ctr[i.auditor]={bins:new Set(),photos:0};ctr[i.auditor].bins.add(i.scanBin);if(validPhoto(i.photoUrl))ctr[i.auditor].photos++;}});
-const cl=document.getElementById('counter-list');cl.innerHTML='';Object.entries(ctr).forEach(([n,d])=>{const hrs=Math.max(0.5,(Date.now()-new Date().setHours(6,0,0,0))/3600000);cl.innerHTML+=`<div class="counter-row"><span class="counter-name">👤 ${n}</span><span class="counter-stats">${d.bins.size} bins · ${(d.bins.size/hrs).toFixed(1)}/hr${d.photos?' · 📷'+d.photos:''}</span></div>`;});
-if(!Object.keys(ctr).length)cl.innerHTML='<div style="font-size:10px;color:var(--text-3);font-weight:600;">No data yet</div>';}
+// ===== UTILS =====
+function haptic(){if(navigator.vibrate)navigator.vibrate(30);}
+function showToast(msg,color='green'){const t=document.getElementById('toast');const c={green:'bg-emerald-600 text-white',red:'bg-red-600 text-white',blue:'bg-blue-600 text-white',orange:'bg-orange-500 text-white',cyan:'bg-cyan-600 text-white'};t.className=`${c[color]||c.green} px-5 py-3 rounded-2xl font-black text-xs uppercase shadow-2xl flex items-center gap-2`;t.style.cssText='position:fixed;top:env(safe-area-inset-top,16px);left:50%;z-index:9999;pointer-events:none;transition:transform 0.4s cubic-bezier(0.175,0.885,0.32,1.275),opacity 0.4s;';document.getElementById('toast-text').textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function showAuditorModal(){document.getElementById('auditor-name-input').value=auditorName;document.getElementById('auditor-modal').classList.remove('hidden');}
+function saveAuditorName(){auditorName=document.getElementById('auditor-name-input').value.trim()||"Floor";localStorage.setItem('auditorName',auditorName);document.getElementById('auditor-name-btn').textContent='👤 '+auditorName;document.getElementById('auditor-modal').classList.add('hidden');}
 
-function render(){const tbody=document.getElementById('tbody');tbody.innerHTML='';const q=(document.getElementById('search').value||'').toLowerCase().trim();
-if(tab==='triggers'){let data=triggers;if(q)data=data.filter(t=>`${t.product} ${t.reason} ${t.triggeredBy} ${t.sourceBin}`.toLowerCase().includes(q));document.getElementById('empty').style.display=data.length?'none':'block';
-data.forEach(t=>{const counted=report.filter(r=>r.prod===t.product&&r.hu!=='EMPTY_BIN');const sQ=counted.reduce((s,r)=>s+r.sapQty,0);const fQ=counted.reduce((s,r)=>s+r.scanQty,0);const v=fQ-sQ;const has=counted.length>0;const vc=v===0?'var(--green)':(v>0?'var(--purple)':'var(--red)');
-const tr=document.createElement('tr');tr.innerHTML=`<td></td><td><span class="mono" style="font-weight:700;color:var(--accent)">${t.product}</span></td><td><div style="font-weight:700">${t.reason}</div><div style="font-size:10px;color:var(--text-3)">from ${t.sourceBin}</div></td><td style="font-size:11px;font-weight:600;color:var(--text-2)">${t.triggeredBy}</td><td>${has?`<div style="font-size:10px"><span style="color:var(--text-3)">SAP</span> <span class="mono" style="font-weight:700">${sQ}</span> <span style="color:var(--text-3)">vs</span> <span class="mono" style="font-weight:700">${fQ}</span></div><div style="font-size:9px;font-weight:800;color:${vc}">${v===0?'✓ Match':(v>0?'+'+v+' extra':v+' short')}</div>`:'<span style="font-size:10px;color:var(--text-3)">Not counted</span>'}</td><td></td><td style="font-size:10px;color:var(--text-3)">${t.timestamp?new Date(t.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="text-align:right"><span class="status-tag ${t.status}">${t.status==='accepted'?'✓ Accepted':(t.status==='declined'?'✗ Declined':'⏳ Pending')}</span></td>`;tbody.appendChild(tr);});updateBulk();return;}
-let data=report.filter(i=>{if(i.hu==='EMPTY_BIN')return false;const r=isRes(i);if(tab==='ok')return i.type==='ok'||r;if(tab==='move')return!r&&i.type==='move';if(tab==='adj')return!r&&i.type==='adj';if(tab==='miss')return!r&&i.type==='miss';if(tab==='inactive')return!r&&i.type==='inactive';return false;});
-if(q)data=data.filter(i=>`${i.hu} ${i.prod} ${i.desc} ${i.sapBin} ${i.scanBin} ${i.auditor} ${i.note}`.toLowerCase().includes(q));document.getElementById('empty').style.display=data.length?'none':'block';
-data.forEach(i=>{const resolved=isRes(i);const k=ikey(i);const isSel=sel.has(k);const opts=RES_OPTS.map(o=>`<option value="${o}" ${String(i.verified)===o?'selected':''}>${o||'— Select —'}</option>`).join('');const diff=i.scanQty-i.sapQty;const dc=diff===0?'var(--text)':(diff>0?'var(--green)':'var(--red)');
-let ev='';if(validPhoto(i.photoUrl))ev+=`<img src="${i.photoUrl}" class="photo-thumb" onclick="event.stopPropagation();openPhoto('${i.photoUrl}')" onerror="this.style.display='none'">`;if(i.note)ev+=`<span style="font-size:10px;color:var(--amber);font-weight:600;background:var(--amber-bg);padding:2px 7px;border-radius:5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;">📝 ${i.note.substring(0,16)}</span>`;if(!validPhoto(i.photoUrl)&&!i.note)ev='<span style="color:var(--text-3)">—</span>';
-const tr=document.createElement('tr');tr.className=isSel?'selected':'';tr.style.cursor='pointer';tr.onclick=()=>openDetail(report.filter(x=>x.hu!=='EMPTY_BIN').indexOf(i));
-tr.innerHTML=`<td onclick="event.stopPropagation()">${resolved?'':`<input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${k}',this.checked)">`}</td><td><span class="mono" style="font-weight:700;color:var(--accent);font-size:11px">${i.hu}</span></td><td><div style="font-weight:700;font-size:12px">${i.prod}</div><div style="font-size:10px;color:var(--text-3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.desc}</div></td><td><span class="mono" style="font-size:11px;font-weight:600;color:var(--text-3)">${i.sapBin||'—'}</span> <span style="color:var(--text-3)">→</span> <span class="mono" style="font-size:11px;font-weight:600;color:var(--green)">${i.scanBin}</span></td><td><span class="mono" style="font-weight:700">${i.scanQty}/${i.sapQty}</span>${diff!==0?`<span style="margin-left:3px;font-size:9px;font-weight:800;color:${dc}">(${diff>0?'+':''}${diff})</span>`:''}</td><td><div style="display:flex;align-items:center;gap:5px">${ev}</div></td><td style="font-size:10px;font-weight:600;color:var(--text-3)">${i.auditor||'—'}</td><td style="text-align:right" onclick="event.stopPropagation()">${resolved?`<span class="resolved-badge">${i.verified}</span>`:(i.type==='ok'?'<span class="status-tag ok">✓ OK</span>':`<select onchange="resolve('${i.hu}','${i.scanBin}',this.value)" class="resolve-sel">${opts}</select>`)}</td>`;tbody.appendChild(tr);});updateBulk();}
+// ===== SCHEDULE =====
+const AISLE_ROWS = "ABCDEFGHJKLMNP".split("");
+let cloudAssignments = []; // pulled from cloud: [{type, value, description}]
 
-function toggleSel(k,c){c?sel.add(k):sel.delete(k);updateBulk();}
-function toggleAll(c){if(c){report.filter(i=>i.hu!=='EMPTY_BIN'&&!isRes(i)&&i.type===tab).forEach(i=>sel.add(ikey(i)));}else sel.clear();render();}
-function clearSel(){sel.clear();document.getElementById('sel-all').checked=false;render();}
-function updateBulk(){document.getElementById('sel-count').textContent=sel.size;document.getElementById('bulk-bar').classList.toggle('show',sel.size>0);}
-async function bulkResolve(){const r=document.getElementById('bulk-res').value;if(!r)return;const items=[];sel.forEach(k=>{const[hu,bin]=k.split('|');items.push({hu,bin,resolution:r});});try{await fetch(API,{method:'POST',body:JSON.stringify({action:'bulkVerify',items})});}catch{await Promise.all(items.map(it=>fetch(API,{method:'POST',body:JSON.stringify({action:'verifyItem',hu:it.hu,bin:it.bin,resolution:it.resolution})})));}sel.clear();document.getElementById('sel-all').checked=false;fetchData();}
-async function resolve(hu,bin,r){if(!r)return;await fetch(API,{method:'POST',body:JSON.stringify({action:'verifyItem',hu,bin,resolution:r})});fetchData();}
-function setTab(t){tab=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));const el=document.getElementById('tab-'+t);if(el)el.classList.add('active');sel.clear();document.getElementById('sel-all').checked=false;render();updateStats();}
-
-function openDetail(idx){const i=report.filter(x=>x.hu!=='EMPTY_BIN')[idx];if(!i)return;const p=document.getElementById('detail-panel');const b=document.getElementById('detail-body');const photo=validPhoto(i.photoUrl)?`<div class="df"><div class="df-label">Photo</div><img src="${i.photoUrl}" style="width:100%;border-radius:var(--radius-sm);margin-top:6px;cursor:pointer" onclick="openPhoto('${i.photoUrl}')" onerror="this.outerHTML='<div class=df-value style=color:var(--text-3)>Failed to load</div>'"></div>`:'<div class="df"><div class="df-label">Photo</div><div class="df-value" style="color:var(--text-3)">None</div></div>';
-b.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="df"><div class="df-label">HU</div><div class="df-value mono" style="color:var(--accent)">${i.hu}</div></div><div class="df"><div class="df-label">Product</div><div class="df-value">${i.prod}</div></div><div class="df"><div class="df-label">SAP Bin</div><div class="df-value mono">${i.sapBin||'—'}</div></div><div class="df"><div class="df-label">Scanned Bin</div><div class="df-value mono" style="color:var(--green)">${i.scanBin}</div></div><div class="df"><div class="df-label">SAP Qty</div><div class="df-value mono" style="font-size:20px">${i.sapQty}</div></div><div class="df"><div class="df-label">Count Qty</div><div class="df-value mono" style="font-size:20px;color:${i.scanQty!==i.sapQty?'var(--red)':'var(--green)'}">${i.scanQty}</div></div></div><div class="df"><div class="df-label">Description</div><div class="df-value" style="font-size:12px">${i.desc||'—'}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="df"><div class="df-label">Batch</div><div class="df-value mono">${i.batch||'—'}</div></div><div class="df"><div class="df-label">Unit</div><div class="df-value">${i.unit||'—'}</div></div><div class="df"><div class="df-label">Stock Type</div><div class="df-value">${i.stockType||'—'}</div></div><div class="df"><div class="df-label">GR Date</div><div class="df-value">${i.grDate||'—'}</div></div></div><div class="df"><div class="df-label">SLED</div><div class="df-value">${i.sled||'—'}</div></div><div class="df"><div class="df-label">Auditor</div><div class="df-value">${i.auditor||'—'}</div></div><div class="df"><div class="df-label">Type</div><div class="df-value"><span class="status-tag ${i.type}">${i.type.toUpperCase()}</span></div></div><div class="df" style="background:var(--amber-bg);border:1px solid var(--amber-border)"><div class="df-label" style="color:var(--amber)">Note</div><div class="df-value" style="font-size:12px;white-space:pre-wrap">${i.note||'No note'}</div></div>${photo}<div class="df"><div class="df-label">Resolution</div><div class="df-value" style="color:${isRes(i)?'var(--green)':'var(--amber)'}">${isRes(i)?i.verified:'Unresolved'}</div></div>`;p.classList.add('open');}
-function closeDetail(){document.getElementById('detail-panel').classList.remove('open');}
-function openPhoto(u){document.getElementById('photo-img').src=u;document.getElementById('photo-overlay').style.display='flex';}
-function closePhoto(){document.getElementById('photo-overlay').style.display='none';}
-
-async function handleUpload(file){if(!file)return;const zone=document.getElementById('upload-zone');document.getElementById('uz-default').style.display='none';document.getElementById('uz-loading').style.display='block';document.getElementById('uz-success').style.display='none';zone.classList.add('uploading');try{const d=await file.arrayBuffer();const wb=XLSX.read(new Uint8Array(d),{type:'array'});const json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);const rows=json.map(r=>[String(r['Storage Bin']||'').trim().toUpperCase(),String(r['Handling Unit']||'').trim(),String(r['Product']||''),String(r['Batch']||'').trim(),String(r['Product Short Description']||''),parseFloat(r['Quantity'])||0]);const res=await fetch(API,{method:'POST',body:JSON.stringify({action:'uploadSAPData',uploader:'Control Center',rows})});const result=await res.json();if(result.success){document.getElementById('uz-loading').style.display='none';document.getElementById('uz-success').style.display='block';document.getElementById('uz-detail').textContent=`${result.rowCount||rows.length} items`;zone.classList.remove('uploading');zone.classList.add('success');setTimeout(()=>{zone.classList.remove('success');document.getElementById('uz-success').style.display='none';document.getElementById('uz-default').style.display='block';},4000);fetchData();}}catch(err){zone.classList.remove('uploading');document.getElementById('uz-loading').style.display='none';document.getElementById('uz-default').style.display='block';alert('Upload failed: '+err.message);}}
-
-function updateFreshness(meta){const badge=document.getElementById('sap-freshness');const info=document.getElementById('sap-meta');if(!meta||!meta.timestamp){badge.className='freshness none';badge.textContent='No SAP Data';info.style.display='none';return;}info.style.display='block';const ts=new Date(meta.timestamp);const mins=Math.round((Date.now()-ts)/60000);const hrs=Math.round(mins/60);document.getElementById('meta-time').textContent=ts.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});document.getElementById('meta-user').textContent=meta.uploader;document.getElementById('meta-rows').textContent=(meta.rowCount||0).toLocaleString();if(mins<120){badge.className='freshness fresh';badge.textContent=`Fresh (${mins}m) · ${(meta.rowCount||0).toLocaleString()}`;}else if(hrs<8){badge.className='freshness stale';badge.textContent=`${hrs}h ago · ${(meta.rowCount||0).toLocaleString()}`;}else{badge.className='freshness old';badge.textContent=`⚠ ${hrs}h old · ${(meta.rowCount||0).toLocaleString()}`;}}
-
-function initAislePicker(){const c=document.getElementById('aisle-picker');c.innerHTML='';ROWS.forEach(r=>{const btn=document.createElement('button');btn.className=`aisle-pick ${assignAisles.has(r)?'on':''}`;btn.textContent=r;btn.onclick=()=>{assignAisles.has(r)?assignAisles.delete(r):assignAisles.add(r);btn.classList.toggle('on');};c.appendChild(btn);});}
-function addProdAssign(){const v=document.getElementById('assign-prod').value.trim();if(!v)return;pendingAssigns.push({type:'product',value:v,description:'Product: '+v,id:'P'+Date.now()+v});document.getElementById('assign-prod').value='';renderAssigns();}
-function buildAssigns(){const list=[...pendingAssigns];assignAisles.forEach(r=>list.push({type:'aisle',value:`W${r}`,description:`W${r} Full aisle`,id:'A'+Date.now()+r}));return list;}
-async function pushAssignments(){const a=buildAssigns();if(!a.length)return;try{await fetch(API,{method:'POST',body:JSON.stringify({action:'setAssignments',assignments:a,assignedBy:'Control Center'})});assignAisles.clear();pendingAssigns=[];initAislePicker();fetchData();}catch(err){alert('Failed: '+err.message);}}
-async function clearAssignments(){if(!confirm('Clear all assignments?'))return;assignAisles.clear();pendingAssigns=[];initAislePicker();try{await fetch(API,{method:'POST',body:JSON.stringify({action:'setAssignments',assignments:[],assignedBy:'Control Center'})});fetchData();}catch{}renderAssigns();}
-function renderAssigns(){const c=document.getElementById('assign-list');const p=buildAssigns();const show=p.length>0?p:_liveAssigns;const isLive=p.length===0;if(!show.length){c.innerHTML='<div style="font-size:10px;color:var(--text-3)">No assignments</div>';return;}c.innerHTML='';show.forEach(a=>{const icon=a.type==='product'?'📦':'📍';let st='';if(isLive&&a.status){st=`<span class="status-tag ${a.status}">${a.status==='accepted'?'✓':(a.status==='declined'?'✗':'⏳')} ${a.status}</span>`;}c.innerHTML+=`<div class="assign-item"><span style="color:var(--text-2)">${icon} ${a.description||a.value}</span>${st}</div>`;});}
-function initMap(){const c=document.getElementById('aisle-map');ROWS.forEach(r=>{const d=document.createElement('div');d.className='map-cell';d.id=`map-${r}`;d.innerHTML=`<div class="cell-fill" style="height:0%"></div><span style="position:relative;z-index:1">${r}</span>`;d.onclick=()=>{document.getElementById('search').value=`W${r}`;render();};c.appendChild(d);});}
-
-// ===== EXPORT — EXACT MATCH TO MASTER TRACKING SHEET =====
-function exportExcel(){
-    const wb=XLSX.utils.book_new();
-    const now=new Date();
-    const yr=now.getFullYear(), mo=now.getMonth()+1;
-    const ref=new Date('2026-03-30');
-    const wk=((Math.floor((now-ref)/604800000)%4)+4)%4+1;
-    const ds=`${mo}/${now.getDate()}/${yr}`;
-
-    // Sheet 1: "All Audit Data" — columns A-P match your master sheet exactly
-    // A:Year B:Month C:Week# D:CT# E:Date F:SKU Type G:Storage Bin H:Handling Unit
-    // I:Product J:Product Short Description K:Quantity L:Batch M:Unit N:Stock Type
-    // O:Goods Receipt Date P:Shelf Life Expiration Date
-    // Then appended columns for count results:
-    // Q:Manual QTY Delta R:Extend ABS Delta S:Manual ADJ/PER T:Extend Area Result
-    // U:Count Qty V:Variance W:Variance% X:Type Y:Resolution Z:Auditor AA:Note AB:Photo URL
-    const fd=report.filter(i=>i.hu!=='EMPTY_BIN').map(i=>({
-        'Year': yr,
-        'Month': mo,
-        'Week#': wk,
-        'CT#': 1,
-        'Date': ds,
-        'SKU Type': '',
-        'Storage Bin': i.scanBin||i.sapBin||'',
-        'Handling Unit': i.hu,
-        'Product': i.prod,
-        'Product Short Description': i.desc,
-        'Quantity': i.sapQty,
-        'Batch': i.batch||'',
-        'Unit': i.unit||'LB',
-        'Stock Type': i.stockType||'F2',
-        'Goods Receipt Date': i.grDate||'',
-        'Shelf Life Expiration Date': i.sled||'',
-        'Manual QTY Delta': '',
-        'Extend ABS Delta': '',
-        'Manual ADJ/PER': '',
-        'Extend Area Result': '',
-        'Count Qty': i.scanQty,
-        'Variance': i.scanQty-i.sapQty,
-        'Variance %': i.sapQty>0?Math.round(((i.scanQty-i.sapQty)/i.sapQty)*10000)/100:0,
-        'Type': i.type,
-        'Resolution': isRes(i)?i.verified:'',
-        'Auditor': i.auditor,
-        'Note': i.note||'',
-        'Photo URL': i.photoUrl||''
-    }));
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fd),'All Audit Data');
-
-    // Sheet 2: "Open Actions" — unresolved only, same columns
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fd.filter(r=>r.Resolution===''&&r.Type!=='ok')),'Open Actions');
-
-    // Sheet 3: "Summary"
-    const items=report.filter(i=>i.hu!=='EMPTY_BIN');
-    const{rate}=computeRate();
-    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([
-        {Metric:'Date',Value:ds},{Metric:'Week',Value:wk},
-        {Metric:'Total Items Audited',Value:items.length},
-        {Metric:'Verified OK',Value:items.filter(i=>i.type==='ok').length},
-        {Metric:'Movements',Value:items.filter(i=>i.type==='move').length},
-        {Metric:'Adjustments',Value:items.filter(i=>i.type==='adj').length},
-        {Metric:'Missing',Value:items.filter(i=>i.type==='miss').length},
-        {Metric:'Extra / Inactive',Value:items.filter(i=>i.type==='inactive').length},
-        {Metric:'Resolved',Value:items.filter(isRes).length},
-        {Metric:'Unresolved',Value:items.filter(i=>i.type!=='ok'&&!isRes(i)).length},
-        {Metric:'Photos Attached',Value:items.filter(i=>validPhoto(i.photoUrl)).length},
-        {Metric:'Bins Completed',Value:new Set(report.map(i=>i.scanBin)).size},
-        {Metric:'Count Rate',Value:rate+' bins/hr'},
-        {Metric:'Inv. Accuracy (Raw)',Value:items.length>0?Math.round(((items.length-items.filter(i=>i.type==='adj'||i.type==='miss'||i.type==='inactive').length)/items.length)*100)+'%':'—'},
-        {Metric:'Bin Accuracy (Raw)',Value:items.length>0?Math.round(((items.length-items.filter(i=>i.type==='move'||i.type==='miss'||i.type==='inactive').length)/items.length)*100)+'%':'—'},
-        {Metric:'CC Triggers Total',Value:triggers.length},
-        {Metric:'CC Accepted',Value:triggers.filter(t=>t.status==='accepted').length},
-        {Metric:'CC Declined',Value:triggers.filter(t=>t.status==='declined').length},
-    ]),'Summary');
-
-    // Sheet 4: "CC Triggers"
-    if(triggers.length>0){
-        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(triggers.map(t=>{
-            const counted=report.filter(r=>r.prod===t.product&&r.hu!=='EMPTY_BIN');
-            return{
-                'Product':t.product,'Reason':t.reason,'Triggered By':t.triggeredBy,
-                'Status':t.status,'Source Bin':t.sourceBin,
-                'SAP Total':counted.reduce((s,r)=>s+r.sapQty,0),
-                'Floor Total':counted.reduce((s,r)=>s+r.scanQty,0),
-                'Variance':counted.reduce((s,r)=>s+r.scanQty,0)-counted.reduce((s,r)=>s+r.sapQty,0),
-                'Timestamp':t.timestamp?new Date(t.timestamp).toLocaleString():''
-            };
-        })),'CC Triggers');
-    }
-
-    XLSX.writeFile(wb,`Cycle_Count_${now.toISOString().split('T')[0]}.xlsx`);
+function isFreshDay() {
+    const day = new Date().getDay();
+    return day === 1 || day === 3 || day === 5; // Mon, Wed, Fri
 }
 
-document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='1')setTab('move');else if(e.key==='2')setTab('adj');else if(e.key==='3')setTab('miss');else if(e.key==='4')setTab('inactive');else if(e.key==='5')setTab('ok');else if(e.key==='6')setTab('triggers');else if(e.key==='e'||e.key==='E')exportExcel();else if(e.key==='/'){e.preventDefault();document.getElementById('search').focus();}else if(e.key==='Escape')closeDetail();});
+function getDayName() {
+    return ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()];
+}
 
-initMap();initAislePicker();fetchData();setInterval(fetchData,5000);
+function getAssignedAisles() {
+    // Returns Set of aisle letters that are assigned (e.g. 'F', 'G')
+    const set = new Set();
+    cloudAssignments.forEach(a => {
+        if (a.type === 'aisle') {
+            // value is "WF" or "WF:00-25"
+            const letter = a.value.replace('W','').split(':')[0];
+            if (letter) set.add(letter);
+        }
+    });
+    return set;
+}
+
+function initSetupGrid(){
+    const g=document.getElementById('row-grid');
+    g.innerHTML="";
+    const assignedAisles = getAssignedAisles();
+    const hasAssignments = cloudAssignments.length > 0;
+    
+    // Header
+    document.getElementById('week-display').innerText = getDayName();
+    document.getElementById('day-display').innerText = hasAssignments ? `${cloudAssignments.length} assigned` : 'No assignments';
+
+    // Build schedule list from cloud assignments + FRESH
+    const schedList = document.getElementById('schedule-list');
+    let schedHTML = '';
+
+    // FRESH on MWF (always)
+    if (isFreshDay()) {
+        schedHTML += `<button onclick="startFreshCycle()" class="w-full text-left py-2.5 px-4 bg-cyan-600/90 hover:bg-cyan-600 rounded-xl flex justify-between items-center text-white text-xs font-bold active:scale-[0.98] transition-all mb-1.5"><span>🧊 FRESH: 14 SKUs</span><span class="text-white/60">▶</span></button>`;
+    }
+
+    // Cloud assignments
+    if (hasAssignments) {
+        cloudAssignments.forEach(a => {
+            if (a.type === 'product') {
+                schedHTML += `<button onclick="startProductCycleFromAssignment('${a.value}')" class="w-full text-left py-2 px-3 bg-orange-500/10 rounded-xl flex justify-between items-center text-xs font-bold active:scale-[0.98] transition-all mb-1"><span class="text-orange-600">📦 ${a.description || a.value}</span><span class="text-orange-400">▶</span></button>`;
+            } else {
+                schedHTML += `<div class="py-1.5 px-3 text-xs"><span class="text-blue-400 font-black">${a.value.split(':')[0]}</span> <span class="text-slate-400 font-semibold">${a.description || ''}</span></div>`;
+            }
+        });
+    } else {
+        schedHTML += `<div class="py-2 px-3 text-xs text-slate-400 italic">No assignments — count any aisle</div>`;
+    }
+
+    schedList.innerHTML = schedHTML;
+
+    // Build aisle grid with assigned aisles highlighted
+    AISLE_ROWS.forEach(row=>{
+        const bc=Object.keys(sapBinIndex).filter(b=>b.includes(`W${row}`)).length;
+        const isAssigned = assignedAisles.has(row);
+        const btn=document.createElement('button');
+        btn.className=`row-btn ${isAssigned ? 'bg-blue-50 border-2 border-blue-400' : 'bg-white border-2 border-slate-100'} p-4 rounded-xl font-black text-lg text-slate-700 relative overflow-hidden`;
+        btn.innerHTML=`<div class="fill-bar" id="fill-${row}"></div><span class="relative z-10">${row}</span>${isAssigned ? '<span class="absolute top-0.5 left-1 text-[7px] text-blue-500 font-black">●</span>' : ''}<span id="badge-${row}" class="absolute top-1 right-1.5 text-[8px] font-black text-blue-500 bg-blue-50 px-1.5 py-0.5 rounded-md z-10">0</span><span class="absolute bottom-1 left-1.5 text-[7px] font-bold text-slate-300 z-10">${bc}</span>`;
+        btn.onclick=()=>{ selectBin(`W${row}00A`); };
+        g.appendChild(btn);
+    });
+    syncCloud();
+}
+
+function startProductCycleFromAssignment(sku) {
+    document.getElementById('prod-cycle-input').value = sku;
+    startProductCycle();
+}
+// ===== CLOUD =====
+// Track which assignment IDs we've already responded to locally
+let respondedIds = JSON.parse(localStorage.getItem('respondedIds') || '{}'); // {id: 'accepted'|'declined'}
+
+async function syncCloud(){
+    try{
+        const r=await fetch(API_URL);
+        const d=await r.json();
+        cloudReport=d.report||[];
+        updateProgressUI();
+        // Check for assignment changes
+        const newAssign = d.assignments || [];
+        const oldJSON = JSON.stringify(cloudAssignments);
+        const newJSON = JSON.stringify(newAssign);
+        if (oldJSON !== newJSON) {
+            cloudAssignments = newAssign;
+            if (!document.getElementById('setup-screen').classList.contains('hidden')) {
+                initSetupGrid();
+            }
+        }
+        // Render notification banners for pending assignments
+        renderNotifications();
+    }catch{}
+    drainQueue();
+}
+
+function renderNotifications() {
+    const container = document.getElementById('notif-container');
+    // Find assignments that are pending and we haven't locally responded to
+    const pending = cloudAssignments.filter(a => 
+        a.status === 'pending' && !respondedIds[a.id]
+    );
+
+    if (pending.length === 0) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    container.style.display = 'block';
+    container.innerHTML = '';
+
+    pending.forEach(a => {
+        const icon = a.type === 'product' ? '📦' : '📍';
+        const desc = a.description || a.value;
+        const banner = document.createElement('div');
+        banner.className = 'notif-banner notif-enter';
+        banner.innerHTML = `
+            <div class="flex items-start gap-3">
+                <span class="text-2xl notif-icon-pulse">${icon}</span>
+                <div class="flex-1 min-w-0">
+                    <p class="text-[9px] font-black uppercase tracking-widest text-white/60">New Cycle Count</p>
+                    <p class="text-sm font-black leading-tight">${desc}</p>
+                    <p class="text-[10px] text-white/50 font-semibold mt-0.5">From ${a.assignedBy || 'Control Center'}</p>
+                </div>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="respondToAssignment('${a.id}','accepted')" class="flex-1 bg-white/20 hover:bg-white/30 text-white py-3 rounded-xl font-black text-xs uppercase active:scale-[0.97] transition-all backdrop-blur">✓ Accept</button>
+                <button onclick="respondToAssignment('${a.id}','declined')" class="flex-1 bg-white/10 hover:bg-white/20 text-white/70 py-3 rounded-xl font-black text-xs uppercase active:scale-[0.97] transition-all">✗ Decline</button>
+            </div>`;
+        container.appendChild(banner);
+    });
+}
+
+async function respondToAssignment(id, status) {
+    haptic();
+    // Immediately update local state so banner disappears
+    respondedIds[id] = status;
+    localStorage.setItem('respondedIds', JSON.stringify(respondedIds));
+    renderNotifications();
+
+    const statusText = status === 'accepted' ? 'Accepted' : 'Declined';
+    showToast(`${statusText}`, status === 'accepted' ? 'green' : 'orange');
+
+    // Send response to cloud
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'respondAssignment',
+                id: id,
+                status: status,
+                respondedBy: auditorName || 'Floor'
+            })
+        });
+    } catch {
+        // Queued for later
+        enqueuePost({ action: 'respondAssignment', id, status, respondedBy: auditorName || 'Floor' });
+    }
+
+    // If accepted and it's a product assignment, auto-navigate to it
+    if (status === 'accepted') {
+        const assignment = cloudAssignments.find(a => a.id === id);
+        if (assignment) {
+            if (assignment.type === 'product') {
+                document.getElementById('prod-cycle-input').value = assignment.value;
+                startProductCycle();
+            } else if (assignment.type === 'aisle') {
+                const aisleLetter = assignment.value.replace('W','').split(':')[0];
+                if (aisleLetter) selectBin(`W${aisleLetter}00A`);
+            }
+        }
+    }
+}
+function updateProgressUI(){const f=new Set(cloudReport.map(i=>i.scanBin));AISLE_ROWS.forEach(r=>{const b=document.getElementById(`badge-${r}`);if(b)b.innerText=Array.from(f).filter(bin=>bin&&bin.includes(`W${r}`)).length;});document.getElementById('total-progress').innerText=`${f.size} Done`;if(currentActiveBin)document.getElementById('bin-done-badge').classList.toggle('hidden',!f.has(currentActiveBin));document.getElementById('rpt-finalized').textContent=new Set(cloudReport.map(i=>i.scanBin)).size;const items=cloudReport.filter(i=>i.hu!=='EMPTY_BIN');const disc=items.filter(i=>i.type!=='ok').length;document.getElementById('rpt-discrep').textContent=disc;if(items.length>0)document.getElementById('rpt-accuracy').textContent=Math.round(((items.length-disc)/items.length)*100)+'%';}
+function updateBinProgress(){const t=currentBinItems.length,d=currentBinItems.filter(i=>i.verified||i.isMissing).length;document.getElementById('bin-progress-bar').style.width=t>0?Math.round((d/t)*100)+'%':'0%';document.getElementById('bin-progress-text').textContent=`${d} / ${t}`;const btn=document.getElementById('btn-confirm-all');(t-d>1&&t-d===t)?btn.classList.remove('hidden'):btn.classList.add('hidden');}
+function confirmAllRemaining(){haptic();let c=0;currentBinItems.forEach(i=>{if(!i.verified&&!i.isMissing){i.countQty=i.sapQty;i.verified=true;c++;}});showToast(`${c} confirmed`,'green');renderAuditList();}
+
+// ===========================
+// ===== FRESH COUNT MODE =====
+// ===========================
+function startFreshCycle() {
+    const matches = sapMasterData.filter(i => FRESH_SKUS.includes(i.product));
+    if (!matches.length) { showToast('No FRESH items','red'); return; }
+
+    // Build HU-level checklist grouped by SKU
+    const grouped = {};
+    FRESH_SKUS.forEach(sku => { grouped[sku] = { desc: '', items: [] }; });
+    matches.forEach(item => {
+        if (grouped[item.product]) {
+            grouped[item.product].items.push({
+                hu: item.hu,
+                huShort: item.hu ? item.hu.slice(-4) : '????',
+                sapBin: item.sapBin,
+                sapQty: item.sapQty,
+                batch: item.batch,
+                checked: false,
+                missing: false,
+                countQty: null // null = not yet, number = entered
+            });
+            if (!grouped[item.product].desc) grouped[item.product].desc = item.desc;
+        }
+    });
+
+    freshData = FRESH_SKUS.filter(sku => grouped[sku].items.length > 0).map(sku => ({
+        sku,
+        desc: grouped[sku].desc,
+        items: grouped[sku].items,
+        expanded: true, // start expanded
+        note: '',
+        photoBase64: null,
+        photoUrl: null
+    }));
+
+    document.getElementById('view-audit').classList.add('hidden');
+    document.getElementById('view-report').classList.add('hidden');
+    document.getElementById('view-fresh').classList.remove('hidden');
+    document.getElementById('fresh-bottom-bar').style.display = 'block';
+    document.getElementById('standard-bottom-bar').style.display = 'none';
+    renderFreshList();
+}
+
+function leaveFresh() {
+    const anyChecked = freshData.some(g => g.items.some(i => i.checked || i.missing));
+    if (anyChecked && !confirm('You have unsaved counts. Leave Fresh mode?')) return;
+    document.getElementById('view-fresh').classList.add('hidden');
+    document.getElementById('view-audit').classList.remove('hidden');
+    document.getElementById('fresh-bottom-bar').style.display = 'none';
+    document.getElementById('standard-bottom-bar').style.display = 'block';
+    freshData = [];
+}
+
+function renderFreshList() {
+    const container = document.getElementById('fresh-list');
+    container.innerHTML = '';
+
+    let totalItems = 0, checkedItems = 0;
+    freshData.forEach(g => { g.items.forEach(i => { totalItems++; if (i.checked || i.missing) checkedItems++; }); });
+    document.getElementById('fresh-progress-text').textContent = `${checkedItems} / ${totalItems} items checked`;
+
+    freshData.forEach((group, gIdx) => {
+        const allDone = group.items.every(i => i.checked || i.missing);
+        const doneCount = group.items.filter(i => i.checked || i.missing).length;
+        const sapTotal = group.items.reduce((s, i) => s + i.sapQty, 0);
+        const countTotal = group.items.filter(i => i.checked).reduce((s, i) => s + (i.countQty !== null ? i.countQty : i.sapQty), 0);
+
+        const card = document.createElement('div');
+        card.className = `fresh-card ${allDone ? 'counted' : ''}`;
+
+        // SKU header (tap to expand/collapse)
+        let headerHTML = `
+            <div onclick="toggleFreshGroup(${gIdx})" class="p-4 flex justify-between items-center active:bg-slate-50 cursor-pointer">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <span class="mono font-black text-sm text-slate-800">${group.sku}</span>
+                        <span class="text-[9px] font-black px-2 py-0.5 rounded-full ${allDone ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}">${doneCount}/${group.items.length}</span>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-semibold">${group.desc}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <p class="text-[7px] font-black text-slate-400 uppercase">SAP</p>
+                        <p class="mono font-black text-slate-300 leading-none">${sapTotal}</p>
+                    </div>
+                    <span class="text-slate-300 text-xs">${group.expanded ? '▼' : '▶'}</span>
+                </div>
+            </div>`;
+
+        // HU checklist items
+        let itemsHTML = '';
+        if (group.expanded) {
+            itemsHTML = '<div class="px-3 pb-3 space-y-2">';
+            group.items.forEach((item, iIdx) => {
+                const isChecked = item.checked;
+                const isMissing = item.missing;
+                const qty = item.countQty !== null ? item.countQty : '';
+                const statusClass = isChecked ? 'checked' : (isMissing ? 'missing' : '');
+                const checkClass = isChecked ? 'on' : (isMissing ? 'miss' : '');
+                const checkIcon = isChecked ? '✓' : (isMissing ? '✕' : '');
+
+                itemsHTML += `
+                    <div class="fresh-hu-item ${statusClass}">
+                        <div onclick="toggleFreshCheck(${gIdx},${iIdx})" class="fresh-check ${checkClass}">${checkIcon}</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="mono font-bold text-slate-700 text-sm">···${item.huShort}</span>
+                                <span class="text-[9px] text-slate-400 font-semibold">${item.sapBin}</span>
+                            </div>
+                            <p class="text-[9px] text-slate-400 font-semibold">SAP: ${item.sapQty}</p>
+                        </div>
+                        <input type="number" inputmode="numeric" value="${qty}" placeholder="${item.sapQty}"
+                            class="fresh-hu-qty" 
+                            onfocus="this.select()"
+                            oninput="setFreshItemQty(${gIdx},${iIdx},this.value)"
+                            ${isMissing ? 'disabled' : ''}>
+                        <button onclick="toggleFreshMissing(${gIdx},${iIdx})" 
+                            class="text-[9px] font-black px-2 py-1.5 rounded-lg border-2 transition-all ${isMissing ? 'bg-red-600 border-red-600 text-white' : 'border-slate-200 text-slate-300'}">
+                            ${isMissing ? 'MISS' : 'Miss'}
+                        </button>
+                    </div>`;
+            });
+
+            // Note/photo for the whole SKU group
+            const hasNote = group.note || group.photoBase64;
+            itemsHTML += `<button onclick="openFreshNoteModal(${gIdx})" class="chip w-full justify-center mt-1 ${hasNote ? 'bg-amber-50 border border-amber-300 text-amber-700' : 'bg-white border border-dashed border-slate-200 text-slate-400'}">
+                ${group.photoBase64 ? '📷 ' : ''}📝 ${group.note ? group.note.substring(0,35) : 'Add Note / Photo'}
+            </button>`;
+            itemsHTML += '</div>';
+        }
+
+        card.innerHTML = headerHTML + itemsHTML;
+        container.appendChild(card);
+    });
+
+    updateFreshTotals();
+}
+
+function toggleFreshGroup(gIdx) {
+    freshData[gIdx].expanded = !freshData[gIdx].expanded;
+    renderFreshList();
+}
+
+function toggleFreshCheck(gIdx, iIdx) {
+    haptic();
+    const item = freshData[gIdx].items[iIdx];
+    if (item.missing) { item.missing = false; } // unmiss first if needed
+    item.checked = !item.checked;
+    if (item.checked && item.countQty === null) {
+        item.countQty = item.sapQty; // default to SAP qty when checking
+    }
+    if (!item.checked) { item.countQty = null; }
+    renderFreshList();
+}
+
+function toggleFreshMissing(gIdx, iIdx) {
+    haptic();
+    const item = freshData[gIdx].items[iIdx];
+    item.missing = !item.missing;
+    if (item.missing) { item.checked = false; item.countQty = 0; }
+    else { item.countQty = null; }
+    renderFreshList();
+}
+
+function setFreshItemQty(gIdx, iIdx, val) {
+    const item = freshData[gIdx].items[iIdx];
+    item.countQty = val === '' ? null : (parseFloat(val) || 0);
+    if (item.countQty !== null && !item.checked) { item.checked = true; }
+    updateFreshTotals();
+}
+
+function updateFreshTotals() {
+    let sapTotal = 0, countTotal = 0;
+    freshData.forEach(g => g.items.forEach(i => {
+        sapTotal += i.sapQty;
+        if (i.checked) countTotal += (i.countQty !== null ? i.countQty : i.sapQty);
+    }));
+    const variance = countTotal - sapTotal;
+    document.getElementById('fresh-sap-total').textContent = sapTotal;
+    document.getElementById('fresh-count-total').textContent = countTotal;
+    const vEl = document.getElementById('fresh-variance-total');
+    vEl.textContent = (variance >= 0 ? '+' : '') + variance;
+    vEl.className = `text-lg font-black mono ${variance === 0 ? 'text-emerald-600' : (variance > 0 ? 'text-purple-600' : 'text-red-600')}`;
+}
+
+function openFreshNoteModal(gIdx) {
+    freshNoteTarget = gIdx;
+    noteTargetIndex = null;
+    const group = freshData[gIdx];
+    document.getElementById('note-modal-context').innerText = `FRESH: ${group.sku} — ${group.desc}`;
+    document.getElementById('note-text').value = group.note || "";
+    currentPhotoBase64 = group.photoBase64 || null;
+    document.getElementById('photo-upload-status').classList.add('hidden');
+    if (currentPhotoBase64) { showPhotoEditor(); } else { document.getElementById('photo-editor').classList.add('hidden'); document.getElementById('photo-empty-state').classList.remove('hidden'); }
+    document.getElementById('note-modal').classList.remove('hidden');
+}
+
+function finalizeFresh() {
+    let unchecked = 0;
+    freshData.forEach(g => g.items.forEach(i => { if (!i.checked && !i.missing) unchecked++; }));
+    if (unchecked > 0) {
+        if (!confirm(`${unchecked} item(s) not checked. Submit anyway?`)) return;
+    }
+    haptic();
+
+    // Build items to log — one row per HU
+    const itemsToLog = [];
+    freshData.forEach(g => {
+        g.items.forEach(i => {
+            const qty = i.checked ? (i.countQty !== null ? i.countQty : i.sapQty) : 0;
+            let type = 'ok';
+            if (i.missing) type = 'miss';
+            else if (qty !== i.sapQty) type = 'adj';
+            itemsToLog.push({
+                hu: i.hu,
+                product: g.sku,
+                desc: g.desc,
+                batch: i.batch || '',
+                sapBin: i.sapBin,
+                scannedBin: i.sapBin,
+                sapQty: i.sapQty,
+                countQty: qty,
+                type: type,
+                note: g.note || '',
+                photoUrl: g.photoUrl || ''
+            });
+        });
+    });
+
+    itemsToLog.forEach(item => cloudReport.push({ scanBin: item.scannedBin, ...item }));
+    updateProgressUI();
+    enqueuePost({ action: 'logAudit', user: auditorName || "Floor", bin: 'PRODUCT: FRESH', items: itemsToLog });
+
+    const sapT = itemsToLog.reduce((s,i) => s+i.sapQty, 0);
+    const cntT = itemsToLog.reduce((s,i) => s+i.countQty, 0);
+    const v = cntT - sapT;
+    showToast(`Fresh submitted (${v >= 0 ? '+' : ''}${v} variance)`, 'cyan');
+
+    document.getElementById('view-fresh').classList.add('hidden');
+    document.getElementById('view-audit').classList.remove('hidden');
+    document.getElementById('fresh-bottom-bar').style.display = 'none';
+    document.getElementById('standard-bottom-bar').style.display = 'block';
+    freshData = [];
+}
+
+// ===== PHOTO / ANNOTATION (shared between standard and FRESH) =====
+function handlePhotoCapture(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=(e)=>{const img=new Image();img.onload=()=>{const maxW=1200,maxH=900;let w=img.width,h=img.height;if(w>maxW){h=h*(maxW/w);w=maxW;}if(h>maxH){w=w*(maxH/h);h=maxH;}const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);currentPhotoBase64=c.toDataURL('image/jpeg',0.75);showPhotoEditor();};img.src=e.target.result;};reader.readAsDataURL(file);event.target.value='';}
+function showPhotoEditor(){document.getElementById('photo-empty-state').classList.add('hidden');document.getElementById('photo-editor').classList.remove('hidden');const p=document.getElementById('photo-preview');p.src=currentPhotoBase64;p.onload=()=>initAnnotationCanvas();}
+function initAnnotationCanvas(){const img=document.getElementById('photo-preview');annotCanvas=document.getElementById('annotation-canvas');annotCanvas.width=img.clientWidth;annotCanvas.height=img.clientHeight;annotCanvas.style.width=img.clientWidth+'px';annotCanvas.style.height=img.clientHeight+'px';annotCtx=annotCanvas.getContext('2d');annotCtx.lineCap='round';annotCtx.lineJoin='round';annotHistory=[];annotCanvas.addEventListener('touchstart',annotStart,{passive:false});annotCanvas.addEventListener('touchmove',annotMove,{passive:false});annotCanvas.addEventListener('touchend',annotEnd,{passive:false});annotCanvas.addEventListener('mousedown',annotStart);annotCanvas.addEventListener('mousemove',annotMove);annotCanvas.addEventListener('mouseup',annotEnd);annotCanvas.addEventListener('mouseleave',annotEnd);}
+function getAnnotPos(e){const r=annotCanvas.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:(t.clientX-r.left)*(annotCanvas.width/r.width),y:(t.clientY-r.top)*(annotCanvas.height/r.height)};}
+function annotStart(e){e.preventDefault();isDrawing=true;annotCtx.strokeStyle=annotColor;annotCtx.lineWidth=annotSize;annotCtx.beginPath();const p=getAnnotPos(e);annotCtx.moveTo(p.x,p.y);annotHistory.push(annotCtx.getImageData(0,0,annotCanvas.width,annotCanvas.height));}
+function annotMove(e){if(!isDrawing)return;e.preventDefault();const p=getAnnotPos(e);annotCtx.lineTo(p.x,p.y);annotCtx.stroke();}
+function annotEnd(){if(isDrawing){isDrawing=false;annotCtx.closePath();}}
+function setAnnotColor(c,el){annotColor=c;document.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('active'));if(el)el.classList.add('active');}
+function setAnnotSize(s){annotSize=s;document.getElementById('pen-thin').className=`text-[9px] font-black ${s===3?'text-blue-600 bg-blue-50':'text-slate-500 bg-slate-100'} px-2 py-1 rounded-lg`;document.getElementById('pen-med').className=`text-[9px] font-black ${s===6?'text-blue-600 bg-blue-50':'text-slate-500 bg-slate-100'} px-2 py-1 rounded-lg`;document.getElementById('pen-thick').className=`text-[9px] font-black ${s===12?'text-blue-600 bg-blue-50':'text-slate-500 bg-slate-100'} px-2 py-1 rounded-lg`;}
+function undoAnnotation(){if(annotHistory.length>0)annotCtx.putImageData(annotHistory.pop(),0,0);}
+function clearAnnotations(){annotCtx.clearRect(0,0,annotCanvas.width,annotCanvas.height);annotHistory=[];}
+function removePhoto(){currentPhotoBase64=null;document.getElementById('photo-editor').classList.add('hidden');document.getElementById('photo-empty-state').classList.remove('hidden');annotHistory=[];}
+function getCompositeImage(){if(!currentPhotoBase64)return null;const img=document.getElementById('photo-preview');const c=document.createElement('canvas');c.width=annotCanvas.width;c.height=annotCanvas.height;const ctx=c.getContext('2d');ctx.drawImage(img,0,0,c.width,c.height);ctx.drawImage(annotCanvas,0,0);return c.toDataURL('image/jpeg',0.8);}
+
+// ===== NOTE MODAL (shared — detects fresh vs standard) =====
+function openNoteModal(idx){haptic();noteTargetIndex=idx;freshNoteTarget=null;const item=currentBinItems[idx];document.getElementById('note-modal-context').innerText=`${item.product} — Bin: ${item.sapBin}`;document.getElementById('note-text').value=item.note||"";currentPhotoBase64=item.photoBase64||null;document.getElementById('photo-upload-status').classList.add('hidden');if(currentPhotoBase64){showPhotoEditor();}else{document.getElementById('photo-editor').classList.add('hidden');document.getElementById('photo-empty-state').classList.remove('hidden');}document.getElementById('note-modal').classList.remove('hidden');}
+function closeNoteModal(){document.getElementById('note-modal').classList.add('hidden');currentPhotoBase64=null;}
+
+function saveNoteAndPhoto() {
+    const composite = getCompositeImage();
+    
+    if (freshNoteTarget !== null) {
+        // FRESH mode
+        const item = freshData[freshNoteTarget];
+        item.note = document.getElementById('note-text').value.trim();
+        if (composite) { item.photoBase64 = composite; item.photoUrl = null; uploadFreshPhoto(freshNoteTarget, composite); }
+        else { item.photoBase64 = null; item.photoUrl = null; }
+        closeNoteModal();
+        renderFreshList();
+    } else if (noteTargetIndex !== null) {
+        // Standard mode
+        const item = currentBinItems[noteTargetIndex];
+        item.note = document.getElementById('note-text').value.trim();
+        if (composite) { item.photoBase64 = composite; item.photoUrl = null; uploadPhotoToCloud(noteTargetIndex, composite); }
+        else { item.photoBase64 = null; item.photoUrl = null; }
+        closeNoteModal();
+        renderAuditList();
+    }
+}
+
+async function uploadPhotoToCloud(idx,base64){try{const item=currentBinItems[idx];const res=await fetch(API_URL,{method:'POST',body:JSON.stringify({action:'uploadPhoto',hu:item.hu,bin:currentActiveBin,product:item.product,imageData:base64})});const result=await res.json();if(result.url){item.photoUrl=result.url;showToast('Photo uploaded','green');}}catch{showToast('Photo queued','orange');const item=currentBinItems[idx];enqueuePost({action:'uploadPhoto',hu:item.hu,bin:currentActiveBin,product:item.product,imageData:base64});}}
+
+async function uploadFreshPhoto(idx, base64) {
+    try {
+        const item = freshData[idx];
+        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'uploadPhoto', hu: `FRESH_${item.sku}`, bin: 'FRESH', product: item.sku, imageData: base64 }) });
+        const result = await res.json();
+        if (result.url) { item.photoUrl = result.url; showToast('Photo uploaded', 'green'); }
+    } catch { showToast('Photo queued', 'orange'); }
+}
+
+function viewPhoto(idx){const item=currentBinItems[idx];const src=item.photoUrl||item.photoBase64;if(!src)return;document.getElementById('photo-viewer-img').src=src;document.getElementById('photo-viewer').classList.remove('hidden');}
+
+// ===== STANDARD MODE FUNCTIONS =====
+function openBinMoveModal(idx){haptic();binMoveTargetIndex=idx;const item=currentBinItems[idx];document.getElementById('move-modal-context').innerText=item.product;document.getElementById('move-sap-bin').innerText=item.sapBin;document.getElementById('move-actual-bin').value=item.actualBin||"";document.getElementById('bin-move-modal').classList.remove('hidden');}
+function closeBinMoveModal(){document.getElementById('bin-move-modal').classList.add('hidden');}
+function saveBinMove(){const b=document.getElementById('move-actual-bin').value.trim().toUpperCase();if(b)currentBinItems[binMoveTargetIndex].actualBin=b;closeBinMoveModal();renderAuditList();}
+function toggleAddForm(){haptic();const m=document.getElementById('add-item-modal');m.classList.toggle('hidden');if(!m.classList.contains('hidden')){['add-hu','add-prod','add-batch','add-qty'].forEach(id=>document.getElementById(id).value='');document.getElementById('smart-fill-badge').classList.add('hidden');setTimeout(()=>document.getElementById('add-hu').focus(),100);}}
+function autoLookupExtra(input){const hu=input.value.trim();if(hu.length<8){document.getElementById('smart-fill-badge').classList.add('hidden');return;}const m=sapHUIndex.get(hu);if(m){document.getElementById('smart-fill-badge').classList.remove('hidden');document.getElementById('add-prod').value=m.product;document.getElementById('add-batch').value=m.batch;document.getElementById('add-qty').focus();}}
+function submitExtra(){
+    const hu=document.getElementById('add-hu').value.trim();
+    const prod=document.getElementById('add-prod').value.trim();
+    const qty=parseFloat(document.getElementById('add-qty').value)||0;
+    if(!prod||qty<=0){showToast('Need product # and count','red');return;}
+    
+    const huMatch=hu ? sapHUIndex.get(hu) : null;
+    const isNoHU = !hu || hu === '0' || hu.trim() === '';
+    const isUnknownHU = hu && !isNoHU && !huMatch;
+    const needsCycleCountPrompt = isNoHU || isUnknownHU;
+    
+    // Add the item to current bin regardless
+    currentBinItems.push({
+        hu: hu || '0',
+        product: prod,
+        batch: document.getElementById('add-batch').value,
+        desc: huMatch ? huMatch.desc : "FOUND (No HU)",
+        sapQty: huMatch ? huMatch.sapQty : 0,
+        sapBin: huMatch ? huMatch.sapBin : "",
+        countQty: qty,
+        verified: true,
+        isMissing: false,
+        isExtra: true,
+        note: isUnknownHU ? `Unknown HU: ${hu}` : (isNoHU ? 'No HU on material' : ''),
+        actualBin: null,
+        photoBase64: null,
+        photoUrl: null
+    });
+    toggleAddForm();
+    showToast('Item added','green');
+    renderAuditList();
+    
+    // If no valid HU, prompt for product cycle count
+    if (needsCycleCountPrompt && prod) {
+        setTimeout(() => {
+            showCycleCountPrompt(prod, qty, isUnknownHU ? `Unknown HU: ${hu}` : 'No HU on material');
+        }, 500);
+    }
+}
+
+function showCycleCountPrompt(product, qty, reason) {
+    const desc = sapMasterData.find(i => i.product === product)?.desc || product;
+    const modal = document.getElementById('cycle-count-prompt');
+    document.getElementById('ccp-product').textContent = product;
+    document.getElementById('ccp-desc').textContent = desc;
+    document.getElementById('ccp-qty').textContent = qty;
+    document.getElementById('ccp-reason').textContent = reason;
+    document.getElementById('ccp-product-val').value = product;
+    modal.dataset.sent = ''; // reset guard
+    modal.classList.remove('hidden');
+}
+
+function closeCycleCountPrompt() {
+    document.getElementById('cycle-count-prompt').classList.add('hidden');
+}
+
+async function acceptCycleCountTrigger() {
+    const modal = document.getElementById('cycle-count-prompt');
+    if (modal.dataset.sent) return; // prevent double tap
+    modal.dataset.sent = 'true';
+    
+    const prod = document.getElementById('ccp-product-val').value;
+    const reason = document.getElementById('ccp-reason').textContent;
+    closeCycleCountPrompt();
+    haptic();
+    
+    const triggerId = 'CC' + Date.now();
+    const payload = {
+        action: 'triggerCycleCount',
+        id: triggerId,
+        product: prod,
+        reason: reason,
+        triggeredBy: auditorName || 'Floor',
+        status: 'accepted',
+        bin: currentActiveBin
+    };
+    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); }
+    catch { enqueuePost(payload); }
+    
+    showToast('Cycle count triggered','blue');
+    document.getElementById('prod-cycle-input').value = prod;
+    startProductCycle();
+}
+
+async function declineCycleCountTrigger() {
+    const modal = document.getElementById('cycle-count-prompt');
+    if (modal.dataset.sent) return; // prevent double tap
+    modal.dataset.sent = 'true';
+    
+    const prod = document.getElementById('ccp-product-val').value;
+    const reason = document.getElementById('ccp-reason').textContent;
+    closeCycleCountPrompt();
+    
+    const triggerId = 'CC' + Date.now();
+    const payload = {
+        action: 'triggerCycleCount',
+        id: triggerId,
+        product: prod,
+        reason: reason,
+        triggeredBy: auditorName || 'Floor',
+        status: 'declined',
+        bin: currentActiveBin
+    };
+    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify(payload) }); }
+    catch { enqueuePost(payload); }
+    
+    showToast('Cycle count skipped','orange');
+}
+
+function finalizeBin(){if(!currentActiveBin)return;const unf=currentBinItems.filter(i=>!i.verified&&!i.isMissing);if(unf.length>0){showToast(`${unf.length} not verified`,'red');return;}haptic();let itemsToLog=currentBinItems.length===0?[{hu:"EMPTY_BIN",product:"NONE",desc:"Confirmed Empty",batch:"",sapBin:"",scannedBin:currentActiveBin,sapQty:0,countQty:0,type:'ok',note:"",photoUrl:""}]:currentBinItems.map(i=>{let type='ok';if(i.isMissing)type='miss';else if(i.isExtra)type='inactive';else if(i.countQty!==i.sapQty)type='adj';return{hu:i.hu,product:i.product,desc:i.desc,batch:i.batch,sapBin:i.sapBin,scannedBin:i.actualBin||currentActiveBin,sapQty:i.sapQty,countQty:i.countQty,type,note:i.note||"",photoUrl:i.photoUrl||""};});itemsToLog.forEach(item=>cloudReport.push({scanBin:item.scannedBin,...item}));updateProgressUI();enqueuePost({action:'logAudit',user:auditorName||"Floor",bin:currentActiveBin,items:itemsToLog});showToast('Bin finalized','blue');if(currentActiveBin.startsWith("PRODUCT:"))leaveAisle();else stepBin(1);}
+
+function renderAuditList(){const container=document.getElementById('audit-list');container.innerHTML="";const isFresh=currentActiveBin==="PRODUCT: FRESH",isSingle=currentActiveBin.startsWith("PRODUCT:")&&!isFresh;if(isFresh||isSingle){const groups={};currentBinItems.forEach((item,idx)=>{const k=isFresh?item.product:item.sapBin;if(!groups[k])groups[k]=[];groups[k].push({item,idx});});Object.keys(groups).forEach(key=>{const isExp=expandedBins.has(key),allDone=groups[key].every(o=>o.item.verified||o.item.isMissing);const div=document.createElement('div');div.className=`bg-white border-2 ${allDone?'border-emerald-200':'border-slate-100'} rounded-2xl overflow-hidden mb-2 shadow-sm`;const badge=`<span class="text-[10px] font-black px-2 py-0.5 rounded-lg ${allDone?'bg-emerald-100 text-emerald-700':'bg-slate-100 text-slate-500'}">${groups[key].filter(o=>o.item.verified||o.item.isMissing).length}/${groups[key].length}</span>`;div.innerHTML=`<div onclick="toggleBinAccordion('${key}')" class="flex justify-between items-center p-4 active:bg-slate-50 cursor-pointer"><div><span class="mono font-black text-slate-800 text-sm">${isFresh?'SKU '+key:key}</span><span class="text-[10px] text-slate-400 font-semibold block truncate max-w-[200px]">${isFresh?groups[key][0].item.desc:groups[key].length+' items'}</span></div><div class="flex items-center gap-2">${badge}<span class="text-slate-300 text-xs">${isExp?'▼':'▶'}</span></div></div><div id="content-${CSS.escape(key)}" class="${isExp?'p-4 pt-0 space-y-3':'hidden'}"></div>`;if(isExp){const cel=div.querySelector(`[id="content-${CSS.escape(key)}"]`);groups[key].forEach(o=>cel.appendChild(createItemCard(o.item,o.idx)));}container.appendChild(div);});}else{if(currentBinItems.length===0&&currentActiveBin!=="")container.innerHTML=`<div class="py-20 text-center"><div class="text-4xl mb-3">📭</div><p class="text-slate-300 font-black uppercase text-xs tracking-widest">Empty Bin — Confirm to finalize</p></div>`;currentBinItems.forEach((item,index)=>container.appendChild(createItemCard(item,index)));}updateBinProgress();}
+
+function createItemCard(item,index){const card=document.createElement('div');const sc=item.verified?'card-verified':(item.isMissing?'card-missing':(item.isExtra?'card-extra':'card-default'));card.className=`p-4 rounded-2xl transition-all shadow-sm ${sc}`;const isPM=currentActiveBin.startsWith("PRODUCT:");const hasNote=item.note&&item.note.trim()!=="";const hasPhoto=item.photoBase64||item.photoUrl;const hasActualBin=item.actualBin&&item.actualBin!==item.sapBin;const qtyMatch=item.verified&&item.countQty===item.sapQty;let extrasHTML=`<button onclick="openNoteModal(${index})" class="chip mt-2 ${(hasNote||hasPhoto)?'bg-amber-50 border border-amber-300 text-amber-700':'bg-white border border-dashed border-slate-200 text-slate-400'}">`;if(hasPhoto)extrasHTML+=`<img src="${item.photoUrl||item.photoBase64}" class="w-5 h-5 rounded object-cover"> `;extrasHTML+=`📝 ${hasNote?item.note.substring(0,25):'Add Note / Photo'}</button>`;if(hasPhoto)extrasHTML+=`<button onclick="viewPhoto(${index})" class="chip mt-1 bg-blue-50 border border-blue-200 text-blue-600">🔍 View Full Photo</button>`;if(isPM)extrasHTML+=`<button onclick="openBinMoveModal(${index})" class="chip mt-2 ${hasActualBin?'bg-purple-50 border border-purple-300 text-purple-700':'bg-white border border-dashed border-slate-200 text-slate-400'}">📍 ${hasActualBin?'Moved → '+item.actualBin:'Bin Move'}</button>`;card.innerHTML=`<div class="flex justify-between items-start mb-3"><div class="flex-1 min-w-0"><div class="flex items-center gap-2 mb-1"><span class="inline-block px-2 py-0.5 bg-slate-900 text-blue-400 mono text-[9px] font-bold rounded-md">HU ${item.hu||'N/A'}</span>${item.isExtra?'<span class="text-[8px] font-black text-purple-600 bg-purple-100 px-1.5 py-0.5 rounded">EXTRA</span>':''}${qtyMatch?'<span class="text-[8px] font-black text-emerald-600">✓</span>':''}</div><h3 class="text-sm font-bold text-slate-800 leading-tight">${item.product}</h3><p class="text-[10px] text-blue-600 font-semibold truncate">${item.desc||''}</p><p class="text-[9px] text-slate-400 font-semibold mt-0.5">Bin: ${item.sapBin}${hasActualBin?' <span class="text-purple-600 font-black">→ '+item.actualBin+'</span>':''}</p></div><div class="text-right bg-slate-50/80 p-2 rounded-xl border min-w-[60px] ml-3"><p class="text-[7px] font-black text-slate-400 uppercase">SAP</p><p class="text-xl mono font-black text-slate-700 leading-none">${item.sapQty}</p></div></div><div class="space-y-2"><div class="flex gap-2"><button onclick="quickConfirm(${index})" class="flex-[3] py-3.5 bg-emerald-600 text-white rounded-xl font-black text-xs uppercase shadow active:scale-95">Confirm ${item.sapQty}</button><button onclick="toggleMissing(${index})" class="flex-1 py-3.5 rounded-xl font-black text-[10px] uppercase border-2 ${item.isMissing?'bg-red-600 border-red-600 text-white':'border-slate-200 text-slate-300 bg-white'}">${item.isMissing?'✕':'Miss'}</button></div><div class="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onclick="adjustQty(${index},-1)" class="stepper-btn bg-white shadow-sm text-slate-400 active:bg-slate-100">−</button><input type="number" inputmode="numeric" value="${item.countQty||''}" oninput="updateCount(${index},this.value)" placeholder="0" class="flex-1 bg-transparent text-center font-black text-2xl text-blue-700 outline-none mono min-w-0"><button onclick="adjustQty(${index},1)" class="stepper-btn bg-white shadow-sm text-blue-600 active:bg-blue-50">+</button></div>${extrasHTML}</div>`;return card;}
+
+function quickConfirm(i){haptic();currentBinItems[i].countQty=currentBinItems[i].sapQty;currentBinItems[i].verified=true;currentBinItems[i].isMissing=false;renderAuditList();}
+function toggleMissing(i){haptic();currentBinItems[i].isMissing=!currentBinItems[i].isMissing;if(currentBinItems[i].isMissing){currentBinItems[i].verified=false;currentBinItems[i].countQty=0;}renderAuditList();}
+function adjustQty(i,d){haptic();let c=currentBinItems[i].countQty||0;currentBinItems[i].countQty=Math.max(0,c+d);currentBinItems[i].verified=true;currentBinItems[i].isMissing=false;renderAuditList();}
+function updateCount(i,v){currentBinItems[i].countQty=parseFloat(v)||0;currentBinItems[i].verified=true;currentBinItems[i].isMissing=false;updateBinProgress();}
+
+function selectBin(n){if(!n)return;const u=n.toUpperCase();currentActiveBin=u;document.getElementById('bin-input').value=u;const e=sapBinIndex[u]||[];currentBinItems=e.map(i=>({...i,verified:false,isMissing:false,countQty:0,note:"",actualBin:null,photoBase64:null,photoUrl:null}));document.getElementById('setup-screen').classList.add('hidden');renderAuditList();window.scrollTo(0,0);updateProgressUI();}
+function stepBin(d){const c=ALL_SAP_BINS.indexOf(currentActiveBin);if(c!==-1&&ALL_SAP_BINS[c+d])selectBin(ALL_SAP_BINS[c+d]);else if(c===-1){const n=ALL_SAP_BINS.find(b=>b>currentActiveBin)||ALL_SAP_BINS[0];selectBin(n);}else showToast(d>0?'Last bin':'First bin','blue');}
+function startProductCycle(){const s=document.getElementById('prod-cycle-input').value.trim(),m=sapMasterData.filter(i=>i.product===s);if(!m.length){showToast('Not found','red');return;}currentActiveBin="PRODUCT: "+s;expandedBins.clear();currentBinItems=m.map(i=>({...i,verified:false,isMissing:false,countQty:0,note:"",actualBin:null,photoBase64:null,photoUrl:null}));document.getElementById('setup-screen').classList.add('hidden');document.getElementById('bin-input').value=currentActiveBin;renderAuditList();}
+function toggleBinAccordion(b){expandedBins.has(b)?expandedBins.delete(b):expandedBins.add(b);renderAuditList();}
+function leaveAisle(){currentActiveBin="";document.getElementById('setup-screen').classList.remove('hidden');}
+
+function switchView(v){
+    ['view-audit','view-report','view-fresh'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+    if(v==='audit'){document.getElementById('view-audit').classList.remove('hidden');document.getElementById('standard-bottom-bar').style.display='block';document.getElementById('fresh-bottom-bar').style.display='none';}
+    else if(v==='report'){document.getElementById('view-report').classList.remove('hidden');renderReportView();document.getElementById('standard-bottom-bar').style.display='none';document.getElementById('fresh-bottom-bar').style.display='none';}
+    document.querySelectorAll('.nav-pill').forEach(b=>{b.classList.remove('active');b.classList.add('text-slate-400','bg-slate-50');});
+    const a=document.getElementById('nav-'+v);if(a){a.classList.add('active');a.classList.remove('text-slate-400','bg-slate-50');}
+}
+
+function renderReportView(){const c=document.getElementById('report-list');c.innerHTML='';const items=cloudReport.filter(i=>i.hu!=='EMPTY_BIN'&&i.type!=='ok');if(!items.length){c.innerHTML='<div class="py-10 text-center text-slate-300 font-bold text-sm">No discrepancies yet</div>';return;}items.slice(-50).reverse().forEach(i=>{const tc={miss:'bg-red-100 text-red-700',adj:'bg-amber-100 text-amber-700',inactive:'bg-purple-100 text-purple-700',move:'bg-blue-100 text-blue-700'}[i.type]||'bg-slate-100 text-slate-600';const d=document.createElement('div');d.className='bg-white border rounded-xl p-3 flex justify-between items-center';d.innerHTML=`<div><p class="font-bold text-sm text-slate-800">${i.prod||i.product}</p><p class="text-[10px] text-slate-400 font-semibold mono">${i.scanBin} · HU ${i.hu}</p></div><div class="flex items-center gap-2"><span class="mono font-bold text-sm">${i.scanQty||i.countQty}/${i.sapQty}</span><span class="text-[9px] font-black uppercase px-2 py-1 rounded-lg ${tc}">${i.type}</span></div>`;c.appendChild(d);});}
+
+function rebuildIndexes(){
+    sapBinIndex={};sapHUIndex=new Map();
+    sapMasterData.forEach(i=>{
+        if(!sapBinIndex[i.sapBin])sapBinIndex[i.sapBin]=[];
+        sapBinIndex[i.sapBin].push(i);
+        sapHUIndex.set(i.hu,i);
+    });
+    // Build complete navigation list: every possible bin Wx00A through Wx38C
+    ALL_SAP_BINS = [];
+    AISLE_ROWS.forEach(row => {
+        for (let num = 0; num <= 38; num++) {
+            const numStr = String(num).padStart(2, '0');
+            ['A','B','C'].forEach(slot => {
+                ALL_SAP_BINS.push(`W${row}${numStr}${slot}`);
+            });
+        }
+    });
+    document.getElementById('stat-loaded').textContent=sapMasterData.length;
+    document.getElementById('stat-bins').textContent=Object.keys(sapBinIndex).length;
+}
+function clearAllData(){if(confirm("Reset all data?")){localStorage.clear();location.reload();}}
+function handleFileUpload(event){const r=new FileReader();r.onload=(e)=>{const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});sapMasterData=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).map(row=>({sapBin:String(row['Storage Bin']||"").trim().toUpperCase(),hu:String(row['Handling Unit']||"").trim(),product:String(row['Product']||""),batch:String(row['Batch']||"").trim(),desc:row['Product Short Description']||"",sapQty:parseFloat(row['Quantity'])||0}));localStorage.setItem('sapMasterData',JSON.stringify(sapMasterData));rebuildIndexes();document.getElementById('upload-prompt').classList.add('hidden');document.getElementById('row-selection').classList.remove('hidden');initSetupGrid();showToast(`${sapMasterData.length} items loaded`,'blue');};r.readAsArrayBuffer(event.target.files[0]);}
+
+
+
+// ===== CLOUD SAP DATA PULL =====
+let sapDataTimestamp = localStorage.getItem('sapDataTimestamp') || null;
+
+async function pullCloudSAPData() {
+    const loadIcon = document.getElementById('load-icon');
+    const loadTitle = document.getElementById('load-title');
+    const loadSub = document.getElementById('load-subtitle');
+    const loadSpinner = document.getElementById('load-spinner');
+    const loadActions = document.getElementById('load-actions');
+    const loadMeta = document.getElementById('load-meta');
+
+    loadIcon.textContent = '📋';
+    loadTitle.textContent = 'Loading SAP Data...';
+    loadSub.textContent = 'Pulling from cloud';
+    loadSpinner.classList.remove('hidden');
+    loadActions.classList.add('hidden');
+    loadMeta.classList.add('hidden');
+
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(API_URL + '?type=sapdata', { signal: controller.signal });
+        clearTimeout(timeout);
+        const data = await res.json();
+
+        if (data.sapData && data.sapData.length > 0) {
+            sapMasterData = data.sapData;
+            localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
+            if (data.meta && data.meta.timestamp) {
+                sapDataTimestamp = data.meta.timestamp;
+                localStorage.setItem('sapDataTimestamp', sapDataTimestamp);
+            }
+            rebuildIndexes();
+            document.getElementById('upload-prompt').classList.add('hidden');
+            document.getElementById('row-selection').classList.remove('hidden');
+            initSetupGrid();
+            showToast(`${sapMasterData.length} items from cloud`, 'blue');
+        } else {
+            loadIcon.textContent = '📭';
+            loadTitle.textContent = 'No Cloud Data';
+            loadSub.textContent = 'Ask your lead to upload SAP data from Control Center';
+            loadSpinner.classList.add('hidden');
+            loadActions.classList.remove('hidden');
+        }
+    } catch (err) {
+        if (sapMasterData.length > 0) {
+            rebuildIndexes();
+            document.getElementById('upload-prompt').classList.add('hidden');
+            document.getElementById('row-selection').classList.remove('hidden');
+            initSetupGrid();
+            showToast('Using cached data (offline)', 'orange');
+        } else {
+            loadIcon.textContent = '📵';
+            loadTitle.textContent = 'Could Not Connect';
+            loadSub.textContent = err.name === 'AbortError' ? 'Request timed out — check connection' : 'Cannot reach cloud — upload a local file or try again';
+            loadSpinner.classList.add('hidden');
+            loadActions.classList.remove('hidden');
+        }
+    }
+}
+
+// Check if cloud data is newer than our cache (called periodically)
+async function checkForDataRefresh() {
+    try {
+        const res = await fetch(API_URL + '?type=sapdata');
+        const data = await res.json();
+        if (data.meta && data.meta.timestamp && data.meta.timestamp !== sapDataTimestamp) {
+            // New data available
+            if (data.sapData && data.sapData.length > 0) {
+                sapMasterData = data.sapData;
+                localStorage.setItem('sapMasterData', JSON.stringify(sapMasterData));
+                sapDataTimestamp = data.meta.timestamp;
+                localStorage.setItem('sapDataTimestamp', sapDataTimestamp);
+                rebuildIndexes();
+                showToast('SAP data refreshed', 'blue');
+            }
+        }
+    } catch {}
+}
+
+window.onload = () => {
+    if (auditorName) document.getElementById('auditor-name-btn').textContent = '👤 ' + auditorName;
+    
+    if (sapMasterData.length > 0) {
+        rebuildIndexes();
+        document.getElementById('upload-prompt').classList.add('hidden');
+        document.getElementById('row-selection').classList.remove('hidden');
+        initSetupGrid();
+        checkForDataRefresh();
+    } else {
+        pullCloudSAPData();
+    }
+    
+    updateQueueBadge();
+    setInterval(syncCloud, 8000);
+    setInterval(drainQueue, 15000);
+    setInterval(checkForDataRefresh, 120000);
+};
 </script>
 </body>
 </html>

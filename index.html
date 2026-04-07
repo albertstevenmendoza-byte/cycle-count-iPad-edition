@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cycle Counter 2.0</title>
+    <title>Control Center 2.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -17,6 +16,7 @@
             --text-2: #6b6b78;
             --text-3: #9898a6;
             --accent: #3b6cf5;
+            --accent-light: #edf1fe;
             --accent-glow: rgba(59,108,245,0.08);
             --green: #16a34a;
             --green-bg: #f0fdf4;
@@ -31,1324 +31,454 @@
             --purple-bg: #f5f3ff;
             --purple-border: #ddd6fe;
             --cyan: #0891b2;
-            --radius: 16px;
+            --cyan-bg: #ecfeff;
+            --cyan-border: #a5f3fc;
+            --radius: 14px;
             --radius-sm: 10px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+            --shadow: 0 4px 12px rgba(0,0,0,0.06);
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); overscroll-behavior: none; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         .mono { font-family: 'IBM Plex Mono', monospace; }
-        button { font-family: inherit; border: none; cursor: pointer; -webkit-user-select: none; user-select: none; }
-        button:active { transform: scale(0.96); }
-        input { font-family: inherit; }
+        button { font-family: inherit; border: none; cursor: pointer; }
+        input, select { font-family: inherit; }
+        .slim-scroll::-webkit-scrollbar { width: 5px; }
+        .slim-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 
-```
-    /* ===== SCREENS ===== */
-    .screen { display: none; flex-direction: column; flex: 1; overflow: hidden; }
-    .screen.active { display: flex; }
+        /* ===== HEADER ===== */
+        .top-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+        .top-bar h1 { font-size: 17px; font-weight: 800; letter-spacing: -0.3px; color: var(--text); }
+        .top-bar-sub { font-size: 9px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; }
+        .top-bar-right { display: flex; align-items: center; gap: 12px; }
+        .sync-pill { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 10px; font-weight: 700; color: var(--text-2); }
+        .sync-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        .sync-pill .dot.off { background: var(--red); animation: pulse 1.5s infinite; }
+        .freshness { padding: 5px 12px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 700; }
+        .freshness.fresh { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+        .freshness.stale { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+        .freshness.old { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+        .freshness.none { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
+        .export-btn { background: var(--green); color: white; padding: 8px 18px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: opacity 0.15s; box-shadow: var(--shadow-sm); }
+        .export-btn:hover { opacity: 0.85; }
 
-    /* ===== HEADER ===== */
-    .app-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
-    .app-header h1 { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; }
-    .header-right { display: flex; align-items: center; gap: 10px; }
-    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
-    .sync-dot.offline { background: var(--red); animation: pulse 1.5s infinite; }
-    .sync-dot.queued { background: var(--amber); animation: pulse 1.5s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-    .name-btn { background: var(--surface-2); color: var(--text-2); padding: 8px 14px; border-radius: var(--radius-sm); font-size: 11px; font-weight: 700; }
+        /* ===== METRICS ===== */
+        .metrics-row { display: flex; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .metric { flex: 1; background: var(--surface); padding: 14px 16px; min-width: 0; }
+        .metric .m-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); white-space: nowrap; }
+        .metric .m-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 700; margin-top: 3px; line-height: 1; color: var(--text); }
+        .metric .m-sub { font-size: 9px; font-weight: 600; color: var(--text-3); margin-top: 3px; }
+        .metric .m-value.green { color: var(--green); }
+        .metric .m-value.red { color: var(--red); }
+        .metric .m-value.amber { color: var(--amber); }
+        .metric .m-value.purple { color: var(--purple); }
+        .metric .m-value.cyan { color: var(--cyan); }
+        .metric .m-value.accent { color: var(--accent); }
 
-    /* ===== PHASE INDICATOR ===== */
-    .phase-bar { display: flex; gap: 2px; padding: 12px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .phase-step { flex: 1; height: 4px; border-radius: 2px; background: var(--surface-3); transition: background 0.4s; }
-    .phase-step.done { background: var(--green); }
-    .phase-step.active { background: var(--accent); animation: phase-glow 1.5s ease infinite; }
-    @keyframes phase-glow { 0%,100%{ box-shadow: 0 0 0 0 var(--accent-glow); } 50%{ box-shadow: 0 0 8px 4px var(--accent-glow); } }
-    .phase-label { display: flex; justify-content: space-between; padding: 0 20px 8px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3); }
-    .phase-label span.active { color: var(--accent); }
-    .phase-label span.done { color: var(--green); }
+        /* ===== LAYOUT ===== */
+        .main-layout { flex: 1; display: flex; overflow: hidden; }
 
-    /* ===== TUTORIAL HINTS ===== */
-    .hint { background: var(--accent-glow); border: 1px solid rgba(79,125,249,0.2); border-radius: var(--radius); padding: 14px 18px; margin: 12px 20px 0; display: flex; align-items: flex-start; gap: 12px; animation: hint-in 0.4s cubic-bezier(0.16,1,0.3,1); }
-    .hint-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
-    .hint-body { flex: 1; }
-    .hint-body p { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.5; }
-    .hint-body small { font-size: 10px; color: var(--text-2); font-weight: 600; }
-    .hint-dismiss { color: var(--text-3); font-size: 10px; font-weight: 700; background: none; padding: 4px 8px; white-space: nowrap; }
-    @keyframes hint-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+        /* ===== SIDEBAR ===== */
+        .sidebar { width: 272px; border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; background: var(--surface); }
+        .sidebar::-webkit-scrollbar { width: 0; }
+        .sb-section { padding: 16px; border-bottom: 1px solid var(--border); }
+        .sb-title { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3); margin-bottom: 10px; }
 
-    /* ===== SCROLLABLE CONTENT ===== */
-    .scroll-area { flex: 1; overflow-y: auto; padding: 16px 20px 200px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .scroll-area::-webkit-scrollbar { display: none; }
+        /* Upload */
+        .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius); padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); }
+        .upload-zone:hover { border-color: var(--accent); background: var(--accent-light); }
+        .upload-zone.drag-over { border-color: var(--accent); background: var(--accent-light); border-style: solid; }
+        .upload-zone.uploading { border-color: var(--amber); background: var(--amber-bg); pointer-events: none; }
+        .upload-zone.success { border-color: var(--green); background: var(--green-bg); }
+        .upload-zone p { font-size: 11px; font-weight: 700; color: var(--text-2); }
+        .upload-zone .uz-icon { font-size: 22px; margin-bottom: 4px; }
+        .upload-zone .uz-sub { font-size: 9px; color: var(--text-3); font-weight: 600; margin-top: 3px; }
 
-    /* ===== HU CARDS ===== */
-    .hu-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; transition: all 0.25s; }
-    .hu-card.confirmed { border-color: var(--green-border); background: var(--green-bg); }
-    .hu-card.missing { border-color: var(--red-border); background: var(--red-bg); opacity: 0.65; }
-    .hu-card.adjusted { border-color: var(--amber-border); background: var(--amber-bg); }
-    .hu-card.movement { border-color: var(--purple-border); background: var(--purple-bg); }
-    .hu-card.extra { border-color: rgba(34,211,238,0.25); background: rgba(34,211,238,0.06); }
-    .hu-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-    .hu-id { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-glow); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(59,108,245,0.15); }
-    .hu-status { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; padding: 4px 10px; border-radius: 6px; }
-    .hu-status.ok { color: var(--green); background: var(--green-bg); }
-    .hu-status.miss { color: var(--red); background: var(--red-bg); }
-    .hu-status.adj { color: var(--amber); background: var(--amber-bg); }
-    .hu-status.move { color: var(--purple); background: var(--purple-bg); }
-    .hu-status.ext { color: var(--cyan); background: rgba(34,211,238,0.1); }
-    .hu-meta { display: flex; gap: 16px; margin-bottom: 12px; }
-    .hu-meta-item { }
-    .hu-meta-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); }
-    .hu-meta-value { font-size: 14px; font-weight: 700; color: var(--text); margin-top: 1px; }
-    .hu-meta-value.mono { font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
-    .hu-actions { display: flex; gap: 8px; }
-    .hu-btn { flex: 1; padding: 14px 0; border-radius: var(--radius-sm); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; text-align: center; }
-    .hu-btn.confirm { background: var(--green); color: white; }
-    .hu-btn.miss-btn { background: var(--surface-3); color: var(--red); border: 1.5px solid var(--red-border); }
-    .hu-btn.miss-btn.active { background: var(--red); color: white; }
+        /* Aisle picker */
+        .aisle-grid { display: flex; flex-wrap: wrap; gap: 4px; }
+        .aisle-pick { width: 30px; height: 30px; border-radius: 7px; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text-3); border: 1.5px solid var(--border); transition: all 0.15s; }
+        .aisle-pick.on { background: var(--accent); color: white; border-color: var(--accent); }
+        .sb-input { width: 100%; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px; font-weight: 600; color: var(--text); outline: none; }
+        .sb-input:focus { border-color: var(--accent); }
+        .sb-input::placeholder { color: var(--text-3); }
+        .sb-btn { width: 100%; padding: 10px 0; border-radius: var(--radius-sm); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; transition: opacity 0.15s; }
+        .sb-btn:hover { opacity: 0.85; }
+        .sb-btn.primary { background: var(--accent); color: white; }
+        .sb-btn.muted { background: var(--surface-2); color: var(--text-3); border: 1px solid var(--border); }
 
-    /* ===== QTY STEPPER ===== */
-    .qty-row { display: flex; align-items: center; gap: 6px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 6px; margin-bottom: 10px; }
-    .qty-stepper { width: 52px; height: 52px; border-radius: var(--radius-sm); background: var(--surface-3); color: var(--text); font-size: 22px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
-    .qty-input { flex: 1; background: transparent; border: none; text-align: center; font-family: 'IBM Plex Mono', monospace; font-size: 32px; font-weight: 700; color: var(--accent); outline: none; min-width: 0; }
-    .qty-input::placeholder { color: var(--text-3); }
-    .sap-qty-badge { font-size: 10px; font-weight: 700; color: var(--text-3); text-align: center; padding: 4px; }
-    .sap-qty-badge strong { color: var(--text-2); }
+        /* Trackers */
+        .tracker { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; box-shadow: var(--shadow-sm); }
+        .tracker:hover { border-color: var(--text-3); }
+        .tracker.sel { border-color: var(--accent); background: var(--accent-light); box-shadow: 0 0 0 2px var(--accent-glow); }
+        .tracker-top { display: flex; justify-content: space-between; align-items: center; }
+        .tracker-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        .tracker-nums { display: flex; align-items: baseline; gap: 4px; }
+        .tracker-total { font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 700; }
+        .tracker-resolved { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: var(--green); }
+        .tracker-bar { height: 3px; background: var(--surface-3); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+        .tracker-bar-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
 
-    /* ===== BOTTOM BAR ===== */
-    .bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 20px calc(env(safe-area-inset-bottom, 8px) + 16px); background: rgba(255,255,255,0.92); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); border-top: 1px solid var(--border); z-index: 50; box-shadow: 0 -4px 20px rgba(0,0,0,0.06); }
-    .primary-btn { width: 100%; padding: 18px 0; border-radius: var(--radius); font-size: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px; }
-    .primary-btn.blue { background: var(--accent); color: white; }
-    .primary-btn.green { background: var(--green); color: white; }
-    .primary-btn.disabled { background: var(--surface-3); color: var(--text-3); pointer-events: none; }
-    .secondary-row { display: flex; gap: 8px; margin-bottom: 10px; }
-    .secondary-btn { flex: 1; padding: 14px 0; border-radius: var(--radius-sm); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: var(--surface-2); color: var(--text-2); border: 1.5px solid var(--border); text-align: center; }
-    .secondary-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+        /* Counters */
+        .counter-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); margin-bottom: 4px; }
+        .counter-name { font-size: 12px; font-weight: 700; }
+        .counter-stats { font-family: 'IBM Plex Mono', monospace; font-size: 10px; font-weight: 600; color: var(--text-3); }
 
-    /* ===== SETUP SCREEN ===== */
-    .setup-hero { text-align: center; padding: 48px 32px; }
-    .setup-hero .icon { font-size: 56px; margin-bottom: 16px; }
-    .setup-hero h2 { font-size: 22px; font-weight: 900; margin-bottom: 6px; }
-    .setup-hero p { font-size: 13px; color: var(--text-2); font-weight: 500; }
-    .aisle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 0 20px 20px; }
-    .aisle-btn { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px 0; text-align: center; font-size: 22px; font-weight: 900; color: var(--text); position: relative; overflow: hidden; transition: all 0.2s; }
-    .aisle-btn .aisle-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(79,125,249,0.12), transparent); transition: height 0.5s; }
-    .aisle-btn .aisle-count { position: absolute; top: 6px; right: 8px; font-size: 9px; font-weight: 700; color: var(--text-3); }
-    .aisle-btn.assigned { border-color: rgba(79,125,249,0.3); }
-    .aisle-btn.assigned::before { content: '●'; position: absolute; top: 6px; left: 8px; font-size: 8px; color: var(--accent); }
-    .section-title { padding: 20px 20px 10px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text-3); }
+        /* Map */
+        .map-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .map-cell { height: 30px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); position: relative; overflow: hidden; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; color: var(--text-3); transition: border-color 0.15s; }
+        .map-cell:hover { border-color: var(--accent); }
+        .map-cell .cell-fill { position: absolute; bottom: 0; left: 0; right: 0; background: linear-gradient(to top, rgba(59,108,245,0.12), transparent); transition: height 0.5s; }
 
-    /* ===== SCHEDULE CARDS ===== */
-    .schedule-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); margin: 0 20px 8px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; }
-    .schedule-card .sch-left { display: flex; align-items: center; gap: 12px; }
-    .schedule-card .sch-icon { font-size: 22px; }
-    .schedule-card .sch-label { font-size: 12px; font-weight: 700; color: var(--text); }
-    .schedule-card .sch-sub { font-size: 10px; color: var(--text-3); font-weight: 600; }
-    .schedule-card .sch-go { color: var(--accent); font-size: 11px; font-weight: 800; }
-    .schedule-card.fresh { border-color: rgba(34,211,238,0.25); }
+        /* ===== CONTENT ===== */
+        .content { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
 
-    /* ===== BIN HEADER ===== */
-    .bin-header { padding: 14px 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
-    .bin-nav { display: flex; gap: 8px; align-items: center; }
-    .bin-nav-btn { width: 48px; height: 48px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-3); font-size: 16px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
-    .bin-input { flex: 1; background: var(--surface-2); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); text-transform: uppercase; text-align: center; outline: none; }
-    .bin-input:focus { border-color: var(--accent); }
-    .bin-progress { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-    .bin-progress-bar { flex: 1; height: 5px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
-    .bin-progress-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.5s; }
-    .bin-progress-text { font-size: 11px; font-weight: 700; color: var(--text-3); font-family: 'IBM Plex Mono', monospace; min-width: 50px; text-align: right; }
+        /* Tabs */
+        .tab-row { display: flex; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; overflow-x: auto; }
+        .tab-row::-webkit-scrollbar { display: none; }
+        .tab { padding: 13px 18px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3); cursor: pointer; white-space: nowrap; position: relative; transition: color 0.2s; border: none; background: none; }
+        .tab.active { color: var(--accent); }
+        .tab.active::after { content: ''; position: absolute; bottom: 0; left: 10px; right: 10px; height: 2.5px; background: var(--accent); border-radius: 2px 2px 0 0; }
+        .tab .badge { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; border-radius: 9px; font-size: 9px; font-weight: 800; margin-left: 5px; padding: 0 5px; }
 
-    /* ===== EXTRA ITEM INPUT ===== */
-    .extra-input-area { background: var(--surface); border: 1.5px dashed var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; }
-    .extra-input-area h3 { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--cyan); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .extra-field { width: 100%; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 14px; font-weight: 600; color: var(--text); outline: none; margin-bottom: 8px; }
-    .extra-field:focus { border-color: var(--accent); }
-    .extra-field::placeholder { color: var(--text-3); }
+        /* Search */
+        .search-row { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--border); background: var(--surface); flex-shrink: 0; }
+        .search-input { flex: 1; background: var(--surface-2); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 9px 14px; font-size: 12px; font-weight: 600; color: var(--text); outline: none; }
+        .search-input:focus { border-color: var(--accent); }
+        .search-input::placeholder { color: var(--text-3); }
 
-    /* ===== CYCLE COUNT VERIFICATION ===== */
-    .verify-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 10px; }
-    .verify-header { text-align: center; margin-bottom: 16px; }
-    .verify-header .v-icon { font-size: 40px; margin-bottom: 8px; }
-    .verify-header h3 { font-size: 16px; font-weight: 800; }
-    .verify-header p { font-size: 12px; color: var(--text-2); font-weight: 500; margin-top: 4px; }
-    .verify-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-radius: var(--radius-sm); margin-bottom: 4px; }
-    .verify-row:nth-child(odd) { background: var(--surface-2); }
-    .verify-row .vr-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-3); }
-    .verify-row .vr-value { font-family: 'IBM Plex Mono', monospace; font-size: 16px; font-weight: 700; }
-    .verify-result { text-align: center; padding: 16px; border-radius: var(--radius-sm); margin-top: 12px; }
-    .verify-result.match { background: var(--green-bg); border: 1.5px solid var(--green-border); }
-    .verify-result.mismatch { background: var(--red-bg); border: 1.5px solid var(--red-border); }
-    .verify-result h4 { font-size: 14px; font-weight: 800; text-transform: uppercase; }
-    .verify-result p { font-size: 11px; font-weight: 500; color: var(--text-2); margin-top: 4px; }
+        /* Bulk */
+        .bulk-bar { display: none; padding: 8px 20px; background: var(--accent-light); border-bottom: 1px solid rgba(59,108,245,0.15); flex-shrink: 0; align-items: center; justify-content: space-between; }
+        .bulk-bar.show { display: flex; }
+        .bulk-select { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 28px 7px 10px; font-size: 11px; font-weight: 700; color: var(--text); outline: none; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239898a6' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+        .bulk-apply { background: var(--accent); color: white; padding: 7px 16px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 
-    /* ===== MODALS ===== */
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 200; display: flex; align-items: flex-end; justify-content: center; padding: 0; }
-    .modal-sheet { background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; width: 100%; max-height: 85vh; overflow-y: auto; padding: 24px 20px calc(env(safe-area-inset-bottom, 8px) + 24px); animation: sheet-up 0.35s cubic-bezier(0.16,1,0.3,1); }
-    @keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-    .modal-handle { width: 36px; height: 4px; background: var(--surface-3); border-radius: 2px; margin: 0 auto 20px; }
-    .modal-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-    .modal-sub { font-size: 12px; color: var(--text-2); font-weight: 500; margin-bottom: 20px; }
+        /* Table */
+        .table-wrap { flex: 1; overflow-y: auto; background: var(--surface); }
+        table { width: 100%; border-collapse: collapse; }
+        thead { position: sticky; top: 0; z-index: 5; background: var(--surface); }
+        th { padding: 10px 14px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); text-align: left; border-bottom: 2px solid var(--border); }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 500; vertical-align: middle; }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover { background: var(--surface-2); }
+        tbody tr.selected { background: var(--accent-light); }
 
-    /* ===== TOAST ===== */
-    .toast { position: fixed; top: env(safe-area-inset-top, 12px); left: 50%; transform: translateX(-50%) translateY(-120%); z-index: 999; padding: 12px 20px; border-radius: var(--radius); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); pointer-events: none; opacity: 0; transition: all 0.4s cubic-bezier(0.16,1,0.3,1); }
-    .toast.show { transform: translateX(-50%) translateY(12px); opacity: 1; }
-    .toast.green { background: var(--green); color: white; }
-    .toast.red { background: var(--red); color: white; }
-    .toast.blue { background: var(--accent); color: white; }
-    .toast.amber { background: var(--amber); color: white; }
+        /* Status tags */
+        .status-tag { display: inline-flex; padding: 4px 10px; border-radius: 6px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-tag.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+        .status-tag.miss { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+        .status-tag.adj { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+        .status-tag.move { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+        .status-tag.inactive { background: var(--cyan-bg); color: var(--cyan); border: 1px solid var(--cyan-border); }
+        .status-tag.accepted { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+        .status-tag.declined { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+        .status-tag.pending { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
 
-    /* ===== REPORT VIEW ===== */
-    .report-card { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .report-stat { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius); padding: 16px; text-align: center; }
-    .report-stat .val { font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 700; }
-    .report-stat .label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3); margin-top: 4px; }
+        /* Resolve */
+        .resolve-sel { background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 28px 7px 10px; font-size: 11px; font-weight: 700; color: var(--text); outline: none; cursor: pointer; appearance: none; transition: border-color 0.15s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%239898a6' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+        .resolve-sel:hover { border-color: var(--accent); }
+        .resolved-badge { display: inline-flex; padding: 5px 12px; border-radius: 8px; font-size: 10px; font-weight: 800; background: var(--green-bg); color: var(--green); border: 1.5px solid var(--green-border); }
 
-    /* ===== EMPTY STATE ===== */
-    .empty-state { text-align: center; padding: 48px 32px; }
-    .empty-state .es-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
-    .empty-state p { color: var(--text-3); font-size: 13px; font-weight: 600; }
+        /* Photo */
+        .photo-thumb { width: 32px; height: 32px; border-radius: 6px; object-fit: cover; border: 1.5px solid var(--border); cursor: pointer; transition: all 0.15s; background: var(--surface-2); }
+        .photo-thumb:hover { border-color: var(--accent); transform: scale(1.1); }
+        .photo-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 300; display: flex; align-items: center; justify-content: center; padding: 40px; cursor: pointer; }
+        .photo-overlay img { max-width: 100%; max-height: 100%; border-radius: var(--radius); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
 
-    /* ===== MISC ===== */
-    .divider { height: 1px; background: var(--border); margin: 16px 0; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .spinner { width: 20px; height: 20px; border: 2.5px solid var(--surface-3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
-    .tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; }
-</style>
-```
+        /* Detail panel */
+        .detail-panel { position: fixed; right: 0; top: 0; bottom: 0; width: 380px; background: var(--surface); border-left: 1px solid var(--border); box-shadow: -8px 0 40px rgba(0,0,0,0.08); z-index: 100; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); overflow-y: auto; }
+        .detail-panel.open { transform: translateX(0); }
+        .detail-header { padding: 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 5; }
+        .detail-close { background: var(--surface-2); color: var(--text-3); width: 32px; height: 32px; border-radius: 8px; font-size: 14px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        .detail-body { padding: 20px; }
+        .df { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 6px; }
+        .df .df-label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-3); }
+        .df .df-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
 
+        /* Empty */
+        .empty-state { text-align: center; padding: 60px 32px; }
+        .empty-state .es-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+        .empty-state p { color: var(--text-3); font-size: 13px; font-weight: 600; }
+
+        /* Assign items */
+        .assign-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: var(--surface-2); margin-bottom: 4px; font-size: 10px; font-weight: 700; }
+    </style>
 </head>
 <body>
 
-<!-- Toast -->
+<div id="photo-overlay" class="photo-overlay" style="display:none" onclick="closePhoto()"><img id="photo-img" src=""></div>
 
-<div id="toast" class="toast green"><span id="toast-text">Saved</span></div>
+<div id="detail-panel" class="detail-panel">
+    <div class="detail-header"><span style="font-size:16px;font-weight:800;">Item Detail</span><button class="detail-close" onclick="closeDetail()">✕</button></div>
+    <div id="detail-body" class="detail-body"></div>
+</div>
 
-<!-- ===== SCREEN: SETUP ===== -->
-
-<div id="screen-setup" class="screen active">
-    <div class="app-header">
-        <h1>Cycle Counter</h1>
-        <div class="header-right">
-            <div id="sync-dot" class="sync-dot"></div>
-            <button class="name-btn" onclick="showNameModal()">👤 <span id="name-display">Set Name</span></button>
-        </div>
+<div class="top-bar">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:20px;">📊</span>
+        <div><h1>Control Center</h1><div class="top-bar-sub">Cycle Count 2.0</div></div>
     </div>
-
-```
-<div class="scroll-area">
-    <!-- Loading state -->
-    <div id="setup-loading" class="setup-hero">
-        <div class="icon">📡</div>
-        <h2>Connecting...</h2>
-        <p>Pulling SAP data from cloud</p>
-        <div class="spinner" style="margin: 24px auto 0;"></div>
-    </div>
-
-    <!-- Ready state (hidden until data loads) -->
-    <div id="setup-ready" style="display:none;">
-        <div id="schedule-section">
-            <div class="section-title">Today's Counts</div>
-            <div id="schedule-list"></div>
-        </div>
-
-        <div class="section-title">Select Aisle</div>
-        <div class="aisle-grid" id="aisle-grid"></div>
-
-        <!-- Quick product lookup -->
-        <div class="section-title">Product Lookup</div>
-        <div style="padding: 0 20px 20px; display: flex; gap: 8px;">
-            <input type="text" id="product-lookup-input" placeholder="Enter Product #" class="extra-field mono" style="margin: 0; flex: 1;">
-            <button onclick="startProductCycle(document.getElementById('product-lookup-input').value.trim())" class="primary-btn blue" style="width: auto; padding: 12px 20px; font-size: 11px;">Go</button>
-        </div>
-
-        <!-- Stats -->
-        <div style="padding: 0 20px 20px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
-            <div class="report-stat"><div id="stat-loaded" class="val" style="font-size:20px">0</div><div class="label">SAP Items</div></div>
-            <div class="report-stat"><div id="stat-bins" class="val" style="font-size:20px">0</div><div class="label">Bins</div></div>
-            <div class="report-stat"><div id="stat-done" class="val" style="font-size:20px; color:var(--green)">0</div><div class="label">Done</div></div>
-        </div>
-    </div>
-
-    <!-- Offline fallback -->
-    <div id="setup-offline" style="display:none;" class="setup-hero">
-        <div class="icon">📵</div>
-        <h2>No Connection</h2>
-        <p>Cannot reach cloud. Upload a local SAP file or retry.</p>
-        <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px; align-items: center;">
-            <button onclick="pullCloudData()" class="primary-btn blue" style="width: auto; padding: 14px 32px;">↻ Retry</button>
-            <input type="file" id="local-file-input" accept=".xlsx,.xls,.csv" class="hidden" style="display:none" onchange="handleLocalFile(event)">
-            <button onclick="document.getElementById('local-file-input').click()" class="secondary-btn" style="padding: 12px 24px;">Upload Local File</button>
-        </div>
+    <div class="top-bar-right">
+        <div id="sap-freshness" class="freshness none">No SAP Data</div>
+        <div id="sync-pill" class="sync-pill"><div class="dot"></div><span id="sync-label">Live</span></div>
+        <button onclick="exportExcel()" class="export-btn">Export</button>
     </div>
 </div>
 
-<!-- Nav -->
-<div class="bottom-bar" style="display:flex; gap:8px;">
-    <button onclick="switchScreen('setup')" class="secondary-btn active" style="flex:1">Count</button>
-    <button onclick="switchScreen('report')" class="secondary-btn" style="flex:1">Report</button>
-</div>
-```
-
-</div>
-
-<!-- ===== SCREEN: COUNTING (the main workflow) ===== -->
-
-<div id="screen-count" class="screen">
-    <div class="app-header">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <button onclick="leaveAisle()" style="background:var(--surface-2);color:var(--text-2);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;font-weight:700;">← Back</button>
-            <h1 id="count-title">Counting</h1>
-        </div>
-        <div class="header-right">
-            <div id="sync-dot-2" class="sync-dot"></div>
-        </div>
-    </div>
-
-```
-<!-- Phase indicator -->
-<div>
-    <div class="phase-bar">
-        <div id="phase-1" class="phase-step active"></div>
-        <div id="phase-2" class="phase-step"></div>
-        <div id="phase-3" class="phase-step"></div>
-    </div>
-    <div class="phase-label">
-        <span id="phase-1-label" class="active">Check HUs</span>
-        <span id="phase-2-label">Scan Extras</span>
-        <span id="phase-3-label">Finalize</span>
-    </div>
+<div class="metrics-row">
+    <div class="metric"><div class="m-label">Inv. Accuracy</div><div id="m-inv-raw" class="m-value">—</div><div class="m-sub">raw</div></div>
+    <div class="metric"><div class="m-label">Inv. Accuracy</div><div id="m-inv-res" class="m-value green">—</div><div class="m-sub">resolved</div></div>
+    <div class="metric"><div class="m-label">Bin Accuracy</div><div id="m-bin-raw" class="m-value">—</div><div class="m-sub">raw</div></div>
+    <div class="metric"><div class="m-label">Bin Accuracy</div><div id="m-bin-res" class="m-value green">—</div><div class="m-sub">resolved</div></div>
+    <div class="metric"><div class="m-label">Progress</div><div id="m-progress" class="m-value accent">0%</div><div id="m-progress-sub" class="m-sub">0 bins</div></div>
+    <div class="metric"><div class="m-label">Open Actions</div><div id="m-open" class="m-value amber">0</div><div class="m-sub">unresolved</div></div>
+    <div class="metric"><div class="m-label">Count Rate</div><div id="m-rate" class="m-value cyan">—</div><div id="m-rate-sub" class="m-sub">bins/hr</div></div>
+    <div class="metric"><div class="m-label">Photos</div><div id="m-photos" class="m-value">0</div><div class="m-sub">attached</div></div>
 </div>
 
-<!-- Bin header -->
-<div class="bin-header">
-    <div class="bin-nav">
-        <button class="bin-nav-btn" onclick="stepBin(-1)">◀</button>
-        <input type="text" id="bin-input" class="bin-input" placeholder="SCAN BIN..." onchange="selectBin(this.value)">
-        <button class="bin-nav-btn" onclick="stepBin(1)">▶</button>
-    </div>
-    <div class="bin-progress">
-        <div class="bin-progress-bar"><div id="bin-progress-fill" class="bin-progress-fill" style="width:0%"></div></div>
-        <span id="bin-progress-text" class="bin-progress-text">0 / 0</span>
-    </div>
-</div>
-
-<!-- Hint (shown on first use) -->
-<div id="hint-check" class="hint" style="display:none;">
-    <span class="hint-icon">💡</span>
-    <div class="hint-body">
-        <p>Check each HU below. Tap <strong>Confirm</strong> if present, or <strong>Missing</strong> if not found.</p>
-        <small>After checking all HUs, you'll scan for extras.</small>
-    </div>
-    <button class="hint-dismiss" onclick="dismissHint('check')">Got it</button>
-</div>
-<div id="hint-extras" class="hint" style="display:none;">
-    <span class="hint-icon">🔍</span>
-    <div class="hint-body">
-        <p>Scan any <strong>extra HUs</strong> you find in this bin that SAP didn't expect.</p>
-        <small>If an extra has no HU label, enter its product # instead.</small>
-    </div>
-    <button class="hint-dismiss" onclick="dismissHint('extras')">Got it</button>
-</div>
-
-<!-- HU List -->
-<div id="hu-list" class="scroll-area"></div>
-
-<!-- Bottom bar -->
-<div id="count-bottom" class="bottom-bar">
-    <div class="secondary-row">
-        <button id="btn-add-extra" onclick="showExtraInput()" class="secondary-btn" style="flex:1">+ Found Extra HU</button>
-        <button id="btn-confirm-all" onclick="confirmAllHUs()" class="secondary-btn" style="flex:1; display:none;">✓ Confirm All</button>
-    </div>
-    <button id="btn-finalize" onclick="finalizeBin()" class="primary-btn disabled">
-        <span id="finalize-text">Check all HUs first</span>
-    </button>
-</div>
-```
-
-</div>
-
-<!-- ===== SCREEN: PRODUCT CYCLE COUNT ===== -->
-
-<div id="screen-product-cc" class="screen">
-    <div class="app-header">
-        <div style="display:flex;align-items:center;gap:10px;">
-            <button onclick="exitProductCC()" style="background:var(--surface-2);color:var(--text-2);padding:8px 12px;border-radius:var(--radius-sm);font-size:11px;font-weight:700;">← Back</button>
-            <h1>Product Count</h1>
-        </div>
-        <div class="header-right">
-            <span id="pcc-product" class="mono" style="font-size:12px;font-weight:700;color:var(--accent);"></span>
-        </div>
-    </div>
-
-```
-<!-- Progress -->
-<div class="bin-header">
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Counting product across all bins</div>
-            <div id="pcc-desc" style="font-size:13px;font-weight:600;color:var(--text-2);margin-top:2px;"></div>
-        </div>
-        <div id="pcc-progress-badge" class="tag" style="background:var(--accent-glow);color:var(--accent);">0 / 0</div>
-    </div>
-    <div class="bin-progress" style="margin-top:8px;">
-        <div class="bin-progress-bar"><div id="pcc-progress-fill" class="bin-progress-fill" style="width:0%"></div></div>
-    </div>
-</div>
-
-<div id="pcc-list" class="scroll-area"></div>
-
-<div id="pcc-bottom" class="bottom-bar">
-    <button id="btn-pcc-verify" onclick="verifyProductCC()" class="primary-btn blue">
-        <span>Verify Totals</span>
-    </button>
-</div>
-```
-
-</div>
-
-<!-- ===== SCREEN: VERIFICATION RESULT ===== -->
-
-<div id="screen-verify" class="screen">
-    <div class="app-header">
-        <h1>Verification</h1>
-        <div class="header-right">
-            <button onclick="closeVerification()" class="name-btn">Done</button>
-        </div>
-    </div>
-    <div id="verify-content" class="scroll-area"></div>
-    <div class="bottom-bar">
-        <button onclick="closeVerification()" class="primary-btn green">
-            <span>Complete</span>
-        </button>
-    </div>
-</div>
-
-<!-- ===== SCREEN: REPORT ===== -->
-
-<div id="screen-report" class="screen">
-    <div class="app-header">
-        <h1>Session Report</h1>
-        <div class="header-right">
-            <button onclick="switchScreen('setup')" class="name-btn">← Back</button>
-        </div>
-    </div>
-    <div id="report-content" class="scroll-area"></div>
-    <div class="bottom-bar" style="display:flex;gap:8px;">
-        <button onclick="switchScreen('setup')" class="secondary-btn active" style="flex:1">Count</button>
-        <button onclick="switchScreen('report')" class="secondary-btn" style="flex:1">Report</button>
-    </div>
-</div>
-
-<!-- ===== MODAL: NAME ===== -->
-
-<div id="modal-name" class="modal-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div class="modal-title">Your Name</div>
-        <div class="modal-sub">So your counts are attributed to you</div>
-        <input type="text" id="name-input" class="extra-field" placeholder="e.g. Albert" style="text-align:center;font-size:18px;">
-        <button onclick="saveName()" class="primary-btn blue" style="margin-top:16px;">Save</button>
-    </div>
-</div>
-
-<!-- ===== MODAL: CYCLE COUNT TRIGGER ===== -->
-
-<div id="modal-cc-trigger" class="modal-overlay" style="display:none;">
-    <div class="modal-sheet">
-        <div class="modal-handle"></div>
-        <div style="text-align:center;margin-bottom:20px;">
-            <div style="font-size:48px;margin-bottom:8px;">⚠️</div>
-            <div class="modal-title">Unknown Item Found</div>
-            <div id="cct-reason" class="modal-sub">This HU isn't in SAP for any bin</div>
-        </div>
-        <div style="background:var(--surface-2);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Product</span>
-                <span id="cct-product" class="mono" style="font-weight:700;color:var(--accent);"></span>
+<div class="main-layout">
+    <aside class="sidebar slim-scroll">
+        <div class="sb-section">
+            <div class="sb-title">SAP Data Feed</div>
+            <div id="upload-zone" class="upload-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault();this.classList.remove('drag-over');handleUpload(event.dataTransfer.files[0])" onclick="document.getElementById('sap-file').click()">
+                <input type="file" id="sap-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleUpload(this.files[0]);this.value=''">
+                <div id="uz-default"><div class="uz-icon">📂</div><p>Drop SAP Export</p><div class="uz-sub">or click to browse</div></div>
+                <div id="uz-loading" style="display:none"><div class="uz-icon">⏳</div><p style="color:var(--amber)">Uploading...</p></div>
+                <div id="uz-success" style="display:none"><div class="uz-icon">✅</div><p style="color:var(--green)">Data Live</p><div id="uz-detail" class="uz-sub"></div></div>
             </div>
-            <div style="display:flex;justify-content:space-between;">
-                <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Qty Found</span>
-                <span id="cct-qty" class="mono" style="font-weight:700;"></span>
+            <div id="sap-meta" style="display:none;margin-top:6px;font-size:9px;font-weight:600;color:var(--text-3);">
+                <div>📅 <span id="meta-time">—</span></div>
+                <div>👤 <span id="meta-user">—</span></div>
+                <div>📊 <span id="meta-rows">—</span> items</div>
             </div>
         </div>
-        <p style="font-size:13px;color:var(--text-2);text-align:center;margin-bottom:20px;line-height:1.5;">
-            Count <strong style="color:var(--accent);">all bins</strong> with this product to verify if the system total matches the floor total?
-        </p>
-        <div style="display:flex;gap:10px;">
-            <button onclick="declineCCTrigger()" class="secondary-btn" style="flex:1;padding:16px 0;">Not Now</button>
-            <button onclick="acceptCCTrigger()" class="primary-btn blue" style="flex:2">Count Now</button>
+        <div class="sb-section">
+            <div class="sb-title">Assign Counts</div>
+            <div style="margin-bottom:6px;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Aisles</div>
+            <div class="aisle-grid" id="aisle-picker"></div>
+            <div style="margin:8px 0 4px;font-size:9px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Product</div>
+            <div style="display:flex;gap:5px;margin-bottom:8px;">
+                <input type="text" id="assign-prod" placeholder="e.g. 3307506" class="sb-input mono" style="flex:1;">
+                <button onclick="addProdAssign()" style="background:var(--amber);color:white;padding:5px 10px;border-radius:var(--radius-sm);font-size:10px;font-weight:800;">+</button>
+            </div>
+            <div style="display:flex;gap:5px;margin-bottom:8px;">
+                <button onclick="pushAssignments()" class="sb-btn primary" style="flex:2">Push</button>
+                <button onclick="clearAssignments()" class="sb-btn muted" style="flex:1">Clear</button>
+            </div>
+            <div id="assign-list"></div>
+        </div>
+        <div class="sb-section">
+            <div class="sb-title">Action Tracker</div>
+            <div id="tracker-move" class="tracker" onclick="setTab('move')"><div class="tracker-top"><span class="tracker-label" style="color:var(--purple)">Movements</span><div class="tracker-nums"><span id="t-move-total" class="tracker-total" style="color:var(--purple)">0</span><span id="t-move-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-move-bar" class="tracker-bar-fill" style="width:0%;background:var(--purple)"></div></div></div>
+            <div id="tracker-adj" class="tracker" onclick="setTab('adj')"><div class="tracker-top"><span class="tracker-label" style="color:var(--amber)">Adjustments</span><div class="tracker-nums"><span id="t-adj-total" class="tracker-total" style="color:var(--amber)">0</span><span id="t-adj-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-adj-bar" class="tracker-bar-fill" style="width:0%;background:var(--amber)"></div></div></div>
+            <div id="tracker-miss" class="tracker" onclick="setTab('miss')"><div class="tracker-top"><span class="tracker-label" style="color:var(--red)">Missing</span><div class="tracker-nums"><span id="t-miss-total" class="tracker-total" style="color:var(--red)">0</span><span id="t-miss-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-miss-bar" class="tracker-bar-fill" style="width:0%;background:var(--red)"></div></div></div>
+            <div id="tracker-inactive" class="tracker" onclick="setTab('inactive')"><div class="tracker-top"><span class="tracker-label" style="color:var(--cyan)">Extra</span><div class="tracker-nums"><span id="t-inactive-total" class="tracker-total" style="color:var(--cyan)">0</span><span id="t-inactive-res" class="tracker-resolved">/0</span></div></div><div class="tracker-bar"><div id="t-inactive-bar" class="tracker-bar-fill" style="width:0%;background:var(--cyan)"></div></div></div>
+        </div>
+        <div class="sb-section">
+            <div class="sb-title">Active Counters</div>
+            <div id="counter-list"><div style="font-size:10px;color:var(--text-3);font-weight:600;">Waiting...</div></div>
+        </div>
+        <div class="sb-section">
+            <div class="sb-title">Aisle Map</div>
+            <div class="map-grid" id="aisle-map"></div>
+        </div>
+    </aside>
+
+    <div class="content">
+        <div class="tab-row">
+            <button onclick="setTab('move')" id="tab-move" class="tab active">Movements <span class="badge" style="background:var(--purple-bg);color:var(--purple)" id="c-move">0</span></button>
+            <button onclick="setTab('adj')" id="tab-adj" class="tab">Adjustments <span class="badge" style="background:var(--amber-bg);color:var(--amber)" id="c-adj">0</span></button>
+            <button onclick="setTab('miss')" id="tab-miss" class="tab">Missing <span class="badge" style="background:var(--red-bg);color:var(--red)" id="c-miss">0</span></button>
+            <button onclick="setTab('inactive')" id="tab-inactive" class="tab">Extra <span class="badge" style="background:var(--cyan-bg);color:var(--cyan)" id="c-inactive">0</span></button>
+            <button onclick="setTab('ok')" id="tab-ok" class="tab">OK <span class="badge" style="background:var(--green-bg);color:var(--green)" id="c-ok">0</span></button>
+            <button onclick="setTab('triggers')" id="tab-triggers" class="tab">CC Triggers <span class="badge" style="background:var(--amber-bg);color:var(--amber)" id="c-triggers">0</span></button>
+        </div>
+        <div class="search-row"><input type="text" id="search" class="search-input" placeholder="Search HU, product, bin, auditor..." oninput="render()"></div>
+        <div id="bulk-bar" class="bulk-bar">
+            <span style="font-size:11px;font-weight:700;color:var(--accent);"><span id="sel-count">0</span> selected</span>
+            <div style="display:flex;gap:6px;">
+                <select id="bulk-res" class="bulk-select"><option value="">— Resolution —</option><option>Item Moved</option><option>Item Adjusted</option><option>Max Volume</option><option>Bin does not exist</option><option>Mixed bin</option></select>
+                <button onclick="bulkResolve()" class="bulk-apply">Apply</button>
+                <button onclick="clearSel()" style="background:none;color:var(--text-3);font-size:10px;font-weight:700;padding:7px 10px;">Clear</button>
+            </div>
+        </div>
+        <div class="table-wrap slim-scroll">
+            <table><thead><tr>
+                <th style="width:32px"><input type="checkbox" id="sel-all" onchange="toggleAll(this.checked)"></th>
+                <th>HU</th><th>Product</th><th>Bins</th><th>Qty</th><th>Evidence</th><th>Auditor</th><th style="text-align:right">Resolution</th>
+            </tr></thead><tbody id="tbody"></tbody></table>
+            <div id="empty" class="empty-state" style="display:none"><div class="es-icon">📭</div><p>No items in this category</p></div>
         </div>
     </div>
 </div>
 
 <script>
-// ===== CONFIG =====
-const API_URL = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
-const AISLE_ROWS = "ABCDEFGHJKLMNP".split("");
-const FRESH_SKUS = ["3305704","3307506","3307509","3307515","3307518","3307525","3307710","3308356","3309009","3309016","3309017","3309019","3309138","3309139"];
+const API = "https://script.google.com/macros/s/AKfycbw_huXZUnTzHzTbcdPLG8xga_bwgfsB6SS0wL_e6dyIiDSrKpaHYK4qikcoX-OhHNxg/exec";
+const AISLES = {A:112,B:118,C:118,D:118,E:118,F:118,G:118,H:118,J:115,K:40,L:106,M:109,N:76,P:22};
+const TOTAL_BINS = Object.values(AISLES).reduce((a,b)=>a+b,0);
+const RES_OPTS = ["","Item Moved","Item Adjusted","Max Volume","Bin does not exist","Mixed bin"];
+const ROWS = "ABCDEFGHJKLMNP".split("");
+let tab='move', report=[], missing=[], triggers=[], sel=new Set();
+let assignAisles=new Set(), pendingAssigns=[], _liveAssigns=[];
 
-// ===== STATE =====
-let sapMaster = JSON.parse(localStorage.getItem('sap2') || '[]');
-let binIndex = {}, huIndex = new Map();
-let auditorName = localStorage.getItem('auditorName2') || '';
-let offlineQueue = JSON.parse(localStorage.getItem('offQ2') || '[]');
-let cloudReport = [], cloudAssignments = [];
-let hints = JSON.parse(localStorage.getItem('hints2') || '{}');
-let completedBins = new Set(JSON.parse(localStorage.getItem('doneBins2') || '[]'));
+function isRes(i){if(!i.verified)return false;const v=String(i.verified).trim().toLowerCase();return v&&v!=='false'&&v!=='true';}
+function ikey(i){return `${i.hu}|${i.scanBin}`;}
+function validPhoto(u){return u&&u!=='undefined'&&u!=='null'&&u.trim()!=='';}
 
-// Current bin state
-let currentBin = '';
-let currentItems = []; // [{hu,product,desc,batch,sapBin,sapQty, countQty,status:'pending'|'confirmed'|'missing'|'adjusted', isExtra,note,photoUrl}]
-let currentPhase = 1; // 1=check HUs, 2=scan extras, 3=finalize
+async function fetchData(){try{const r=await fetch(API);const d=await r.json();report=d.report||[];missing=d.missing||[];triggers=d.triggers||[];if(d.sapMeta)updateFreshness(d.sapMeta);if(d.assignments){_liveAssigns=d.assignments;renderAssigns();}if(!document.activeElement||!document.activeElement.classList.contains('resolve-sel'))render();updateStats();document.getElementById('sync-label').textContent='Live';document.querySelector('#sync-pill .dot').className='dot';}catch{document.getElementById('sync-label').textContent='Offline';document.querySelector('#sync-pill .dot').className='dot off';}}
 
-// Product cycle count state
-let pccProduct = '';
-let pccItems = []; // [{hu,sapBin,sapQty,countQty,checked}]
-let pccTriggerQty = 0; // qty of the extra that triggered this
-let pccTriggerBin = '';
+function computeRate(){const bins=new Set(report.map(i=>i.scanBin).filter(Boolean));const bc=bins.size;if(!bc)return{rate:'—',sub:'bins/hr'};const now=Date.now();const ss=new Date();ss.setHours(6,0,0,0);const hrs=Math.max(0.5,(now-ss.getTime())/3600000);return{rate:(bc/hrs).toFixed(1),sub:`bins/hr · ${Math.round(hrs)}h`};}
 
-// ===== UTILS =====
-function haptic() { if (navigator.vibrate) navigator.vibrate(25); }
-function toast(msg, color = 'green') {
-    const t = document.getElementById('toast');
-    t.className = `toast ${color}`;
-    document.getElementById('toast-text').textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2200);
-}
+function updateStats(){const items=report.filter(i=>i.hu&&i.hu!=='EMPTY_BIN');const bins=new Set(report.map(i=>i.scanBin));let td=0;
+ROWS.forEach(r=>{const rc=Array.from(bins).filter(b=>b&&b.charAt(1)===r).length;const p=Math.min(100,Math.round((rc/(AISLES[r]||1))*100));const c=document.getElementById(`map-${r}`);if(c){const f=c.querySelector('.cell-fill');if(f)f.style.height=p+'%';}td+=rc;});
+document.getElementById('m-progress').textContent=Math.round((td/TOTAL_BINS)*100)+'%';document.getElementById('m-progress-sub').textContent=`${td} / ${TOTAL_BINS}`;
+if(!items.length)return;
+const isI=i=>i.type==='adj'||i.type==='miss'||i.type==='inactive';const isB=i=>i.type==='move'||i.type==='miss'||i.type==='inactive';
+document.getElementById('m-inv-raw').textContent=Math.round(((items.length-items.filter(isI).length)/items.length)*100)+'%';
+document.getElementById('m-inv-res').textContent=Math.round(((items.length-items.filter(i=>isI(i)&&!isRes(i)).length)/items.length)*100)+'%';
+document.getElementById('m-bin-raw').textContent=Math.round(((items.length-items.filter(isB).length)/items.length)*100)+'%';
+document.getElementById('m-bin-res').textContent=Math.round(((items.length-items.filter(i=>isB(i)&&!isRes(i)).length)/items.length)*100)+'%';
+document.getElementById('m-open').textContent=items.filter(i=>i.type!=='ok'&&!isRes(i)).length;
+document.getElementById('m-photos').textContent=items.filter(i=>validPhoto(i.photoUrl)).length;
+const{rate,sub}=computeRate();document.getElementById('m-rate').textContent=rate;document.getElementById('m-rate-sub').textContent=sub;
+['move','adj','miss','inactive'].forEach(t=>{const ti=items.filter(i=>i.type===t);const total=ti.length,res=ti.filter(isRes).length;document.getElementById(`t-${t}-total`).textContent=total;document.getElementById(`t-${t}-res`).textContent=`/${res}`;document.getElementById(`t-${t}-bar`).style.width=total>0?Math.round((res/total)*100)+'%':'0%';document.getElementById(`tracker-${t}`).classList.toggle('sel',tab===t);});
+document.getElementById('c-move').textContent=items.filter(i=>i.type==='move'&&!isRes(i)).length;document.getElementById('c-adj').textContent=items.filter(i=>i.type==='adj'&&!isRes(i)).length;document.getElementById('c-miss').textContent=items.filter(i=>i.type==='miss'&&!isRes(i)).length;document.getElementById('c-inactive').textContent=items.filter(i=>i.type==='inactive'&&!isRes(i)).length;document.getElementById('c-ok').textContent=items.filter(i=>i.type==='ok'||isRes(i)).length;document.getElementById('c-triggers').textContent=triggers.length;
+const ctr={};report.forEach(i=>{if(i.auditor&&i.auditor!=='undefined'){if(!ctr[i.auditor])ctr[i.auditor]={bins:new Set(),photos:0};ctr[i.auditor].bins.add(i.scanBin);if(validPhoto(i.photoUrl))ctr[i.auditor].photos++;}});
+const cl=document.getElementById('counter-list');cl.innerHTML='';Object.entries(ctr).forEach(([n,d])=>{const hrs=Math.max(0.5,(Date.now()-new Date().setHours(6,0,0,0))/3600000);cl.innerHTML+=`<div class="counter-row"><span class="counter-name">👤 ${n}</span><span class="counter-stats">${d.bins.size} bins · ${(d.bins.size/hrs).toFixed(1)}/hr${d.photos?' · 📷'+d.photos:''}</span></div>`;});
+if(!Object.keys(ctr).length)cl.innerHTML='<div style="font-size:10px;color:var(--text-3);font-weight:600;">No data yet</div>';}
 
-// ===== OFFLINE QUEUE =====
-function enqueue(payload) {
-    offlineQueue.push(payload);
-    localStorage.setItem('offQ2', JSON.stringify(offlineQueue));
-    updateSyncDot();
-    drainQueue();
-}
-async function drainQueue() {
-    if (!offlineQueue.length) return;
-    let ok = 0;
-    for (const p of [...offlineQueue]) {
-        try {
-            const r = await fetch(API_URL, { method: 'POST', body: JSON.stringify(p) });
-            if (r.ok) { ok++; offlineQueue.shift(); } else break;
-        } catch { break; }
-    }
-    localStorage.setItem('offQ2', JSON.stringify(offlineQueue));
-    updateSyncDot();
-    if (ok > 0) toast(`${ok} synced`, 'green');
-}
-function updateSyncDot() {
-    const cls = offlineQueue.length > 0 ? 'sync-dot queued' : 'sync-dot';
-    document.getElementById('sync-dot').className = cls;
-    const d2 = document.getElementById('sync-dot-2');
-    if (d2) d2.className = cls;
-}
+function render(){const tbody=document.getElementById('tbody');tbody.innerHTML='';const q=(document.getElementById('search').value||'').toLowerCase().trim();
+if(tab==='triggers'){let data=triggers;if(q)data=data.filter(t=>`${t.product} ${t.reason} ${t.triggeredBy} ${t.sourceBin}`.toLowerCase().includes(q));document.getElementById('empty').style.display=data.length?'none':'block';
+data.forEach(t=>{const counted=report.filter(r=>r.prod===t.product&&r.hu!=='EMPTY_BIN');const sQ=counted.reduce((s,r)=>s+r.sapQty,0);const fQ=counted.reduce((s,r)=>s+r.scanQty,0);const v=fQ-sQ;const has=counted.length>0;const vc=v===0?'var(--green)':(v>0?'var(--purple)':'var(--red)');
+const tr=document.createElement('tr');tr.innerHTML=`<td></td><td><span class="mono" style="font-weight:700;color:var(--accent)">${t.product}</span></td><td><div style="font-weight:700">${t.reason}</div><div style="font-size:10px;color:var(--text-3)">from ${t.sourceBin}</div></td><td style="font-size:11px;font-weight:600;color:var(--text-2)">${t.triggeredBy}</td><td>${has?`<div style="font-size:10px"><span style="color:var(--text-3)">SAP</span> <span class="mono" style="font-weight:700">${sQ}</span> <span style="color:var(--text-3)">vs</span> <span class="mono" style="font-weight:700">${fQ}</span></div><div style="font-size:9px;font-weight:800;color:${vc}">${v===0?'✓ Match':(v>0?'+'+v+' extra':v+' short')}</div>`:'<span style="font-size:10px;color:var(--text-3)">Not counted</span>'}</td><td></td><td style="font-size:10px;color:var(--text-3)">${t.timestamp?new Date(t.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="text-align:right"><span class="status-tag ${t.status}">${t.status==='accepted'?'✓ Accepted':(t.status==='declined'?'✗ Declined':'⏳ Pending')}</span></td>`;tbody.appendChild(tr);});updateBulk();return;}
+let data=report.filter(i=>{if(i.hu==='EMPTY_BIN')return false;const r=isRes(i);if(tab==='ok')return i.type==='ok'||r;if(tab==='move')return!r&&i.type==='move';if(tab==='adj')return!r&&i.type==='adj';if(tab==='miss')return!r&&i.type==='miss';if(tab==='inactive')return!r&&i.type==='inactive';return false;});
+if(q)data=data.filter(i=>`${i.hu} ${i.prod} ${i.desc} ${i.sapBin} ${i.scanBin} ${i.auditor} ${i.note}`.toLowerCase().includes(q));document.getElementById('empty').style.display=data.length?'none':'block';
+data.forEach(i=>{const resolved=isRes(i);const k=ikey(i);const isSel=sel.has(k);const opts=RES_OPTS.map(o=>`<option value="${o}" ${String(i.verified)===o?'selected':''}>${o||'— Select —'}</option>`).join('');const diff=i.scanQty-i.sapQty;const dc=diff===0?'var(--text)':(diff>0?'var(--green)':'var(--red)');
+let ev='';if(validPhoto(i.photoUrl))ev+=`<img src="${i.photoUrl}" class="photo-thumb" onclick="event.stopPropagation();openPhoto('${i.photoUrl}')" onerror="this.style.display='none'">`;if(i.note)ev+=`<span style="font-size:10px;color:var(--amber);font-weight:600;background:var(--amber-bg);padding:2px 7px;border-radius:5px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;">📝 ${i.note.substring(0,16)}</span>`;if(!validPhoto(i.photoUrl)&&!i.note)ev='<span style="color:var(--text-3)">—</span>';
+const tr=document.createElement('tr');tr.className=isSel?'selected':'';tr.style.cursor='pointer';tr.onclick=()=>openDetail(report.filter(x=>x.hu!=='EMPTY_BIN').indexOf(i));
+tr.innerHTML=`<td onclick="event.stopPropagation()">${resolved?'':`<input type="checkbox" ${isSel?'checked':''} onchange="toggleSel('${k}',this.checked)">`}</td><td><span class="mono" style="font-weight:700;color:var(--accent);font-size:11px">${i.hu}</span></td><td><div style="font-weight:700;font-size:12px">${i.prod}</div><div style="font-size:10px;color:var(--text-3);max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i.desc}</div></td><td><span class="mono" style="font-size:11px;font-weight:600;color:var(--text-3)">${i.sapBin||'—'}</span> <span style="color:var(--text-3)">→</span> <span class="mono" style="font-size:11px;font-weight:600;color:var(--green)">${i.scanBin}</span></td><td><span class="mono" style="font-weight:700">${i.scanQty}/${i.sapQty}</span>${diff!==0?`<span style="margin-left:3px;font-size:9px;font-weight:800;color:${dc}">(${diff>0?'+':''}${diff})</span>`:''}</td><td><div style="display:flex;align-items:center;gap:5px">${ev}</div></td><td style="font-size:10px;font-weight:600;color:var(--text-3)">${i.auditor||'—'}</td><td style="text-align:right" onclick="event.stopPropagation()">${resolved?`<span class="resolved-badge">${i.verified}</span>`:(i.type==='ok'?'<span class="status-tag ok">✓ OK</span>':`<select onchange="resolve('${i.hu}','${i.scanBin}',this.value)" class="resolve-sel">${opts}</select>`)}</td>`;tbody.appendChild(tr);});updateBulk();}
 
-// ===== HINTS =====
-function showHint(id) {
-    if (hints[id]) return;
-    const el = document.getElementById('hint-' + id);
-    if (el) el.style.display = 'flex';
-}
-function dismissHint(id) {
-    hints[id] = true;
-    localStorage.setItem('hints2', JSON.stringify(hints));
-    const el = document.getElementById('hint-' + id);
-    if (el) el.style.display = 'none';
-}
+function toggleSel(k,c){c?sel.add(k):sel.delete(k);updateBulk();}
+function toggleAll(c){if(c){report.filter(i=>i.hu!=='EMPTY_BIN'&&!isRes(i)&&i.type===tab).forEach(i=>sel.add(ikey(i)));}else sel.clear();render();}
+function clearSel(){sel.clear();document.getElementById('sel-all').checked=false;render();}
+function updateBulk(){document.getElementById('sel-count').textContent=sel.size;document.getElementById('bulk-bar').classList.toggle('show',sel.size>0);}
+async function bulkResolve(){const r=document.getElementById('bulk-res').value;if(!r)return;const items=[];sel.forEach(k=>{const[hu,bin]=k.split('|');items.push({hu,bin,resolution:r});});try{await fetch(API,{method:'POST',body:JSON.stringify({action:'bulkVerify',items})});}catch{await Promise.all(items.map(it=>fetch(API,{method:'POST',body:JSON.stringify({action:'verifyItem',hu:it.hu,bin:it.bin,resolution:it.resolution})})));}sel.clear();document.getElementById('sel-all').checked=false;fetchData();}
+async function resolve(hu,bin,r){if(!r)return;await fetch(API,{method:'POST',body:JSON.stringify({action:'verifyItem',hu,bin,resolution:r})});fetchData();}
+function setTab(t){tab=t;document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));const el=document.getElementById('tab-'+t);if(el)el.classList.add('active');sel.clear();document.getElementById('sel-all').checked=false;render();updateStats();}
 
-// ===== NAME =====
-function showNameModal() {
-    document.getElementById('name-input').value = auditorName;
-    document.getElementById('modal-name').style.display = 'flex';
-    setTimeout(() => document.getElementById('name-input').focus(), 100);
-}
-function saveName() {
-    auditorName = document.getElementById('name-input').value.trim() || 'Counter';
-    localStorage.setItem('auditorName2', auditorName);
-    document.getElementById('name-display').textContent = auditorName;
-    document.getElementById('modal-name').style.display = 'none';
-}
+function openDetail(idx){const i=report.filter(x=>x.hu!=='EMPTY_BIN')[idx];if(!i)return;const p=document.getElementById('detail-panel');const b=document.getElementById('detail-body');const photo=validPhoto(i.photoUrl)?`<div class="df"><div class="df-label">Photo</div><img src="${i.photoUrl}" style="width:100%;border-radius:var(--radius-sm);margin-top:6px;cursor:pointer" onclick="openPhoto('${i.photoUrl}')" onerror="this.outerHTML='<div class=df-value style=color:var(--text-3)>Failed to load</div>'"></div>`:'<div class="df"><div class="df-label">Photo</div><div class="df-value" style="color:var(--text-3)">None</div></div>';
+b.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="df"><div class="df-label">HU</div><div class="df-value mono" style="color:var(--accent)">${i.hu}</div></div><div class="df"><div class="df-label">Product</div><div class="df-value">${i.prod}</div></div><div class="df"><div class="df-label">SAP Bin</div><div class="df-value mono">${i.sapBin||'—'}</div></div><div class="df"><div class="df-label">Scanned Bin</div><div class="df-value mono" style="color:var(--green)">${i.scanBin}</div></div><div class="df"><div class="df-label">SAP Qty</div><div class="df-value mono" style="font-size:20px">${i.sapQty}</div></div><div class="df"><div class="df-label">Count Qty</div><div class="df-value mono" style="font-size:20px;color:${i.scanQty!==i.sapQty?'var(--red)':'var(--green)'}">${i.scanQty}</div></div></div><div class="df"><div class="df-label">Description</div><div class="df-value" style="font-size:12px">${i.desc||'—'}</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><div class="df"><div class="df-label">Batch</div><div class="df-value mono">${i.batch||'—'}</div></div><div class="df"><div class="df-label">Unit</div><div class="df-value">${i.unit||'—'}</div></div><div class="df"><div class="df-label">Stock Type</div><div class="df-value">${i.stockType||'—'}</div></div><div class="df"><div class="df-label">GR Date</div><div class="df-value">${i.grDate||'—'}</div></div></div><div class="df"><div class="df-label">SLED</div><div class="df-value">${i.sled||'—'}</div></div><div class="df"><div class="df-label">Auditor</div><div class="df-value">${i.auditor||'—'}</div></div><div class="df"><div class="df-label">Type</div><div class="df-value"><span class="status-tag ${i.type}">${i.type.toUpperCase()}</span></div></div><div class="df" style="background:var(--amber-bg);border:1px solid var(--amber-border)"><div class="df-label" style="color:var(--amber)">Note</div><div class="df-value" style="font-size:12px;white-space:pre-wrap">${i.note||'No note'}</div></div>${photo}<div class="df"><div class="df-label">Resolution</div><div class="df-value" style="color:${isRes(i)?'var(--green)':'var(--amber)'}">${isRes(i)?i.verified:'Unresolved'}</div></div>`;p.classList.add('open');}
+function closeDetail(){document.getElementById('detail-panel').classList.remove('open');}
+function openPhoto(u){document.getElementById('photo-img').src=u;document.getElementById('photo-overlay').style.display='flex';}
+function closePhoto(){document.getElementById('photo-overlay').style.display='none';}
 
-// ===== SCREENS =====
-function switchScreen(id) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('screen-' + id).classList.add('active');
-    if (id === 'report') renderReport();
-}
+async function handleUpload(file){if(!file)return;const zone=document.getElementById('upload-zone');document.getElementById('uz-default').style.display='none';document.getElementById('uz-loading').style.display='block';document.getElementById('uz-success').style.display='none';zone.classList.add('uploading');try{const d=await file.arrayBuffer();const wb=XLSX.read(new Uint8Array(d),{type:'array'});const json=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);const rows=json.map(r=>[String(r['Storage Bin']||'').trim().toUpperCase(),String(r['Handling Unit']||'').trim(),String(r['Product']||''),String(r['Batch']||'').trim(),String(r['Product Short Description']||''),parseFloat(r['Quantity'])||0]);const res=await fetch(API,{method:'POST',body:JSON.stringify({action:'uploadSAPData',uploader:'Control Center',rows})});const result=await res.json();if(result.success){document.getElementById('uz-loading').style.display='none';document.getElementById('uz-success').style.display='block';document.getElementById('uz-detail').textContent=`${result.rowCount||rows.length} items`;zone.classList.remove('uploading');zone.classList.add('success');setTimeout(()=>{zone.classList.remove('success');document.getElementById('uz-success').style.display='none';document.getElementById('uz-default').style.display='block';},4000);fetchData();}}catch(err){zone.classList.remove('uploading');document.getElementById('uz-loading').style.display='none';document.getElementById('uz-default').style.display='block';alert('Upload failed: '+err.message);}}
 
-// ===== DATA LOADING =====
-function buildIndexes() {
-    binIndex = {};
-    huIndex = new Map();
-    sapMaster.forEach(i => {
-        const bin = (i.sapBin || '').toUpperCase();
-        if (!binIndex[bin]) binIndex[bin] = [];
-        binIndex[bin].push(i);
-        if (i.hu) huIndex.set(i.hu, i);
-    });
-    document.getElementById('stat-loaded').textContent = sapMaster.length;
-    document.getElementById('stat-bins').textContent = Object.keys(binIndex).length;
-}
+function updateFreshness(meta){const badge=document.getElementById('sap-freshness');const info=document.getElementById('sap-meta');if(!meta||!meta.timestamp){badge.className='freshness none';badge.textContent='No SAP Data';info.style.display='none';return;}info.style.display='block';const ts=new Date(meta.timestamp);const mins=Math.round((Date.now()-ts)/60000);const hrs=Math.round(mins/60);document.getElementById('meta-time').textContent=ts.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});document.getElementById('meta-user').textContent=meta.uploader;document.getElementById('meta-rows').textContent=(meta.rowCount||0).toLocaleString();if(mins<120){badge.className='freshness fresh';badge.textContent=`Fresh (${mins}m) · ${(meta.rowCount||0).toLocaleString()}`;}else if(hrs<8){badge.className='freshness stale';badge.textContent=`${hrs}h ago · ${(meta.rowCount||0).toLocaleString()}`;}else{badge.className='freshness old';badge.textContent=`⚠ ${hrs}h old · ${(meta.rowCount||0).toLocaleString()}`;}}
 
-async function pullCloudData() {
-    document.getElementById('setup-loading').style.display = 'block';
-    document.getElementById('setup-ready').style.display = 'none';
-    document.getElementById('setup-offline').style.display = 'none';
+function initAislePicker(){const c=document.getElementById('aisle-picker');c.innerHTML='';ROWS.forEach(r=>{const btn=document.createElement('button');btn.className=`aisle-pick ${assignAisles.has(r)?'on':''}`;btn.textContent=r;btn.onclick=()=>{assignAisles.has(r)?assignAisles.delete(r):assignAisles.add(r);btn.classList.toggle('on');};c.appendChild(btn);});}
+function addProdAssign(){const v=document.getElementById('assign-prod').value.trim();if(!v)return;pendingAssigns.push({type:'product',value:v,description:'Product: '+v,id:'P'+Date.now()+v});document.getElementById('assign-prod').value='';renderAssigns();}
+function buildAssigns(){const list=[...pendingAssigns];assignAisles.forEach(r=>list.push({type:'aisle',value:`W${r}`,description:`W${r} Full aisle`,id:'A'+Date.now()+r}));return list;}
+async function pushAssignments(){const a=buildAssigns();if(!a.length)return;try{await fetch(API,{method:'POST',body:JSON.stringify({action:'setAssignments',assignments:a,assignedBy:'Control Center'})});assignAisles.clear();pendingAssigns=[];initAislePicker();fetchData();}catch(err){alert('Failed: '+err.message);}}
+async function clearAssignments(){if(!confirm('Clear all assignments?'))return;assignAisles.clear();pendingAssigns=[];initAislePicker();try{await fetch(API,{method:'POST',body:JSON.stringify({action:'setAssignments',assignments:[],assignedBy:'Control Center'})});fetchData();}catch{}renderAssigns();}
+function renderAssigns(){const c=document.getElementById('assign-list');const p=buildAssigns();const show=p.length>0?p:_liveAssigns;const isLive=p.length===0;if(!show.length){c.innerHTML='<div style="font-size:10px;color:var(--text-3)">No assignments</div>';return;}c.innerHTML='';show.forEach(a=>{const icon=a.type==='product'?'📦':'📍';let st='';if(isLive&&a.status){st=`<span class="status-tag ${a.status}">${a.status==='accepted'?'✓':(a.status==='declined'?'✗':'⏳')} ${a.status}</span>`;}c.innerHTML+=`<div class="assign-item"><span style="color:var(--text-2)">${icon} ${a.description||a.value}</span>${st}</div>`;});}
+function initMap(){const c=document.getElementById('aisle-map');ROWS.forEach(r=>{const d=document.createElement('div');d.className='map-cell';d.id=`map-${r}`;d.innerHTML=`<div class="cell-fill" style="height:0%"></div><span style="position:relative;z-index:1">${r}</span>`;d.onclick=()=>{document.getElementById('search').value=`W${r}`;render();};c.appendChild(d);});}
 
-    try {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(API_URL + '?type=sapdata', { signal: controller.signal });
-        const data = await res.json();
-        if (data.sapData && data.sapData.length > 0) {
-            sapMaster = data.sapData;
-            localStorage.setItem('sap2', JSON.stringify(sapMaster));
-            buildIndexes();
-            showSetupReady();
-            toast(`${sapMaster.length} items loaded`, 'blue');
-        } else {
-            showSetupOffline('No SAP data in cloud — ask your lead to upload from Control Center');
-        }
-    } catch (err) {
-        if (sapMaster.length > 0) {
-            buildIndexes();
-            showSetupReady();
-            toast('Using cached data', 'amber');
-        } else {
-            showSetupOffline('Cannot reach cloud');
-        }
-    }
-    // Also pull report data
-    syncCloud();
-}
+// ===== EXPORT — EXACT MATCH TO MASTER TRACKING SHEET =====
+function exportExcel(){
+    const wb=XLSX.utils.book_new();
+    const now=new Date();
+    const yr=now.getFullYear(), mo=now.getMonth()+1;
+    const ref=new Date('2026-03-30');
+    const wk=((Math.floor((now-ref)/604800000)%4)+4)%4+1;
+    const ds=`${mo}/${now.getDate()}/${yr}`;
 
-function showSetupReady() {
-    document.getElementById('setup-loading').style.display = 'none';
-    document.getElementById('setup-ready').style.display = 'block';
-    document.getElementById('setup-offline').style.display = 'none';
-    buildAisleGrid();
-    buildSchedule();
-}
-
-function showSetupOffline(msg) {
-    document.getElementById('setup-loading').style.display = 'none';
-    document.getElementById('setup-ready').style.display = 'none';
-    document.getElementById('setup-offline').style.display = 'block';
-}
-
-function handleLocalFile(event) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        sapMaster = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]).map(row => ({
-            sapBin: String(row['Storage Bin'] || '').trim().toUpperCase(),
-            hu: String(row['Handling Unit'] || '').trim(),
-            product: String(row['Product'] || ''),
-            batch: String(row['Batch'] || '').trim(),
-            desc: row['Product Short Description'] || '',
-            sapQty: parseFloat(row['Quantity']) || 0
-        }));
-        localStorage.setItem('sap2', JSON.stringify(sapMaster));
-        buildIndexes();
-        showSetupReady();
-        toast(`${sapMaster.length} items loaded`, 'blue');
-    };
-    reader.readAsArrayBuffer(event.target.files[0]);
-}
-
-// ===== CLOUD SYNC =====
-async function syncCloud() {
-    try {
-        const r = await fetch(API_URL);
-        const d = await r.json();
-        cloudReport = d.report || [];
-        cloudAssignments = d.assignments || [];
-        updateDoneCount();
-    } catch {}
-    drainQueue();
-}
-function updateDoneCount() {
-    const done = new Set(cloudReport.map(i => i.scanBin));
-    completedBins.forEach(b => done.add(b));
-    document.getElementById('stat-done').textContent = done.size;
-}
-
-// ===== AISLE GRID =====
-function buildAisleGrid() {
-    const grid = document.getElementById('aisle-grid');
-    grid.innerHTML = '';
-    const assigned = new Set();
-    cloudAssignments.forEach(a => {
-        if (a.type === 'aisle') {
-            const letter = (a.value || '').replace('W', '').split(':')[0];
-            if (letter) assigned.add(letter);
-        }
-    });
-
-    AISLE_ROWS.forEach(row => {
-        const binCount = Object.keys(binIndex).filter(b => b.includes(`W${row}`)).length;
-        const doneCount = [...completedBins].filter(b => b.includes(`W${row}`)).length + cloudReport.filter(r => r.scanBin && r.scanBin.includes(`W${row}`)).length;
-        const isAssigned = assigned.has(row);
-        const btn = document.createElement('button');
-        btn.className = `aisle-btn ${isAssigned ? 'assigned' : ''}`;
-        const pct = binCount > 0 ? Math.min(100, Math.round((doneCount / binCount) * 100)) : 0;
-        btn.innerHTML = `
-            <div class="aisle-fill" style="height:${pct}%"></div>
-            <span style="position:relative;z-index:1">${row}</span>
-            <span class="aisle-count">${binCount}</span>`;
-        btn.onclick = () => selectBin(`W${row}00A`);
-        grid.appendChild(btn);
-    });
-}
-
-// ===== SCHEDULE =====
-function buildSchedule() {
-    const container = document.getElementById('schedule-list');
-    container.innerHTML = '';
-
-    const day = new Date().getDay();
-    const isFreshDay = day === 1 || day === 3 || day === 5;
-
-    if (isFreshDay) {
-        const card = document.createElement('div');
-        card.className = 'schedule-card fresh';
-        card.innerHTML = `<div class="sch-left"><span class="sch-icon">🧊</span><div><div class="sch-label">FRESH Count</div><div class="sch-sub">${FRESH_SKUS.length} SKUs · Mon/Wed/Fri</div></div></div><span class="sch-go">Start →</span>`;
-        card.onclick = () => startFreshCycle();
-        container.appendChild(card);
-    }
-
-    cloudAssignments.forEach(a => {
-        const card = document.createElement('div');
-        card.className = 'schedule-card';
-        const icon = a.type === 'product' ? '📦' : '📍';
-        card.innerHTML = `<div class="sch-left"><span class="sch-icon">${icon}</span><div><div class="sch-label">${a.description || a.value}</div><div class="sch-sub">From ${a.assignedBy || 'Control Center'}</div></div></div><span class="sch-go">Start →</span>`;
-        card.onclick = () => {
-            if (a.type === 'product') startProductCycle(a.value);
-            else { const letter = (a.value || '').replace('W', '').split(':')[0]; selectBin(`W${letter}00A`); }
-        };
-        container.appendChild(card);
-    });
-
-    if (!isFreshDay && cloudAssignments.length === 0) {
-        container.innerHTML = '<div class="schedule-card"><div class="sch-left"><span class="sch-icon">📋</span><div><div class="sch-label" style="color:var(--text-3)">No assignments</div><div class="sch-sub">Select an aisle below to begin</div></div></div></div>';
-    }
-}
-
-// ===== BIN SELECTION =====
-function selectBin(binStr) {
-    if (!binStr) return;
-    currentBin = binStr.toUpperCase();
-    const expected = binIndex[currentBin] || [];
-
-    currentItems = expected.map(i => ({
-        hu: i.hu, product: i.product, desc: i.desc, batch: i.batch,
-        sapBin: i.sapBin, sapQty: i.sapQty,
-        countQty: 0, status: 'pending', isExtra: false, note: '', photoUrl: ''
+    // Sheet 1: "All Audit Data" — columns A-P match your master sheet exactly
+    // A:Year B:Month C:Week# D:CT# E:Date F:SKU Type G:Storage Bin H:Handling Unit
+    // I:Product J:Product Short Description K:Quantity L:Batch M:Unit N:Stock Type
+    // O:Goods Receipt Date P:Shelf Life Expiration Date
+    // Then appended columns for count results:
+    // Q:Manual QTY Delta R:Extend ABS Delta S:Manual ADJ/PER T:Extend Area Result
+    // U:Count Qty V:Variance W:Variance% X:Type Y:Resolution Z:Auditor AA:Note AB:Photo URL
+    const fd=report.filter(i=>i.hu!=='EMPTY_BIN').map(i=>({
+        'Year': yr,
+        'Month': mo,
+        'Week#': wk,
+        'CT#': 1,
+        'Date': ds,
+        'SKU Type': '',
+        'Storage Bin': i.scanBin||i.sapBin||'',
+        'Handling Unit': i.hu,
+        'Product': i.prod,
+        'Product Short Description': i.desc,
+        'Quantity': i.sapQty,
+        'Batch': i.batch||'',
+        'Unit': i.unit||'LB',
+        'Stock Type': i.stockType||'F2',
+        'Goods Receipt Date': i.grDate||'',
+        'Shelf Life Expiration Date': i.sled||'',
+        'Manual QTY Delta': '',
+        'Extend ABS Delta': '',
+        'Manual ADJ/PER': '',
+        'Extend Area Result': '',
+        'Count Qty': i.scanQty,
+        'Variance': i.scanQty-i.sapQty,
+        'Variance %': i.sapQty>0?Math.round(((i.scanQty-i.sapQty)/i.sapQty)*10000)/100:0,
+        'Type': i.type,
+        'Resolution': isRes(i)?i.verified:'',
+        'Auditor': i.auditor,
+        'Note': i.note||'',
+        'Photo URL': i.photoUrl||''
     }));
-
-    currentPhase = 1;
-    document.getElementById('bin-input').value = currentBin;
-    document.getElementById('count-title').textContent = currentBin;
-    switchScreen('count');
-    showHint('check');
-    renderHUList();
-    updatePhase();
-}
-
-// Smart bin navigation: skip empty bins
-function stepBin(dir) {
-    // Get all bins for the current aisle
-    if (!currentBin) return;
-    const aisleChar = currentBin.charAt(1);
-    const aisleBins = Object.keys(binIndex).filter(b => b.charAt(1) === aisleChar).sort();
-    if (!aisleBins.length) { toast('No bins in this aisle', 'amber'); return; }
-    const idx = aisleBins.indexOf(currentBin);
-    if (idx === -1) {
-        // Current bin not populated — find nearest
-        const nearest = dir > 0 ? aisleBins.find(b => b > currentBin) : [...aisleBins].reverse().find(b => b < currentBin);
-        if (nearest) selectBin(nearest);
-        else toast(dir > 0 ? 'Last bin' : 'First bin', 'blue');
-    } else {
-        const next = aisleBins[idx + dir];
-        if (next) selectBin(next);
-        else toast(dir > 0 ? 'End of aisle' : 'Start of aisle', 'blue');
-    }
-}
-
-function leaveAisle() {
-    const pending = currentItems.filter(i => i.status === 'pending');
-    if (pending.length > 0 && !confirm(`${pending.length} items unchecked. Leave?`)) return;
-    currentBin = '';
-    currentItems = [];
-    switchScreen('setup');
-    buildAisleGrid();
-}
-
-// ===== PHASE MANAGEMENT =====
-function updatePhase() {
-    const allChecked = currentItems.filter(i => !i.isExtra).every(i => i.status !== 'pending');
-    const hasExtras = currentItems.some(i => i.isExtra);
-
-    // Auto-advance phase
-    if (allChecked && currentPhase === 1) {
-        currentPhase = 2;
-        showHint('extras');
-    }
-
-    // Phase indicators
-    [1, 2, 3].forEach(p => {
-        const el = document.getElementById(`phase-${p}`);
-        const label = document.getElementById(`phase-${p}-label`);
-        el.className = 'phase-step';
-        label.className = '';
-        if (p < currentPhase) { el.classList.add('done'); label.classList.add('done'); }
-        else if (p === currentPhase) { el.classList.add('active'); label.classList.add('active'); }
-    });
-
-    // Finalize button state
-    const btn = document.getElementById('btn-finalize');
-    const txt = document.getElementById('finalize-text');
-    const pending = currentItems.filter(i => i.status === 'pending');
-    if (pending.length > 0) {
-        btn.className = 'primary-btn disabled';
-        txt.textContent = `${pending.length} item${pending.length > 1 ? 's' : ''} unchecked`;
-    } else {
-        btn.className = 'primary-btn green';
-        txt.textContent = 'Finalize & Next Bin →';
-    }
-
-    // Confirm All button
-    const unchecked = currentItems.filter(i => !i.isExtra && i.status === 'pending');
-    document.getElementById('btn-confirm-all').style.display = unchecked.length > 1 ? 'block' : 'none';
-
-    // Progress bar
-    const total = currentItems.length;
-    const done = currentItems.filter(i => i.status !== 'pending').length;
-    document.getElementById('bin-progress-fill').style.width = total > 0 ? Math.round((done / total) * 100) + '%' : '0%';
-    document.getElementById('bin-progress-text').textContent = `${done} / ${total}`;
-}
-
-// ===== RENDER HU LIST =====
-function renderHUList() {
-    const container = document.getElementById('hu-list');
-    container.innerHTML = '';
-
-    // Empty bin message
-    if (currentItems.length === 0 && currentBin) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="es-icon">📭</div>
-                <p>SAP shows this bin as empty</p>
-                <p style="color:var(--accent);margin-top:8px;font-weight:700;">Scan any items found here using "+ Found Extra HU" below</p>
-            </div>`;
-        updatePhase();
-        return;
-    }
-
-    // Expected items first, then extras
-    const expected = currentItems.filter(i => !i.isExtra);
-    const extras = currentItems.filter(i => i.isExtra);
-
-    if (expected.length > 0 && currentPhase <= 1) {
-        container.innerHTML += `<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-3);margin-bottom:8px;">Expected in bin (${expected.length})</div>`;
-    }
-
-    expected.forEach((item, idx) => {
-        const realIdx = currentItems.indexOf(item);
-        container.appendChild(createHUCard(item, realIdx));
-    });
-
-    if (extras.length > 0) {
-        const div = document.createElement('div');
-        div.style.cssText = 'font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:var(--cyan);margin:16px 0 8px;display:flex;align-items:center;gap:8px;';
-        div.innerHTML = '🔍 Extra Items Found';
-        container.appendChild(div);
-        extras.forEach((item, idx) => {
-            const realIdx = currentItems.indexOf(item);
-            container.appendChild(createHUCard(item, realIdx));
-        });
-    }
-
-    updatePhase();
-}
-
-function createHUCard(item, idx) {
-    const card = document.createElement('div');
-    let statusClass = '';
-    let statusBadge = '';
-
-    if (item.status === 'confirmed') { statusClass = item.isExtra ? 'extra' : 'confirmed'; statusBadge = '<span class="hu-status ok">✓ Confirmed</span>'; }
-    else if (item.status === 'missing') { statusClass = 'missing'; statusBadge = '<span class="hu-status miss">✗ Missing</span>'; }
-    else if (item.status === 'adjusted') { statusClass = 'adjusted'; statusBadge = '<span class="hu-status adj">± Adjusted</span>'; }
-    else if (item.isExtra) { statusClass = 'extra'; statusBadge = '<span class="hu-status ext">+ Extra</span>'; }
-
-    card.className = `hu-card ${statusClass}`;
-
-    const qtyMatch = item.countQty === item.sapQty && item.status === 'confirmed';
-    const showActions = item.status === 'pending' || item.status === 'adjusted';
-
-    card.innerHTML = `
-        <div class="hu-header">
-            <span class="hu-id">HU ${item.hu || '—'}</span>
-            ${statusBadge}
-        </div>
-        <div class="hu-meta">
-            <div class="hu-meta-item"><div class="hu-meta-label">Product</div><div class="hu-meta-value">${item.product}</div></div>
-            <div class="hu-meta-item"><div class="hu-meta-label">SAP Qty</div><div class="hu-meta-value mono">${item.sapQty}</div></div>
-            ${item.isExtra && item.sapBin ? `<div class="hu-meta-item"><div class="hu-meta-label">SAP Says</div><div class="hu-meta-value mono" style="color:var(--purple)">${item.sapBin}</div></div>` : ''}
-        </div>
-        <div style="font-size:11px;color:var(--text-2);font-weight:500;margin-bottom:12px;">${item.desc || ''}</div>
-        ${showActions ? `
-            <div class="qty-row">
-                <button class="qty-stepper" onclick="adjustQty(${idx},-1)">−</button>
-                <input type="number" inputmode="numeric" class="qty-input" value="${item.countQty || ''}" placeholder="${item.sapQty}" onfocus="this.select()" oninput="setQty(${idx},this.value)">
-                <button class="qty-stepper" onclick="adjustQty(${idx},1)">+</button>
-            </div>
-            <div class="sap-qty-badge">SAP expects <strong>${item.sapQty}</strong></div>
-            <div class="hu-actions">
-                <button class="hu-btn confirm" onclick="confirmHU(${idx})">Confirm ${item.sapQty}</button>
-                <button class="hu-btn miss-btn ${item.status === 'missing' ? 'active' : ''}" onclick="markMissing(${idx})">Missing</button>
-            </div>
-        ` : `
-            ${item.status !== 'pending' ? `
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface-2);border-radius:var(--radius-sm);">
-                    <span style="font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;">Count</span>
-                    <span class="mono" style="font-size:18px;font-weight:700;color:${qtyMatch ? 'var(--green)' : 'var(--amber)'};">${item.countQty}</span>
-                </div>
-                <button onclick="resetHU(${idx})" style="width:100%;margin-top:8px;padding:10px;background:none;color:var(--text-3);font-size:10px;font-weight:700;">↺ Undo</button>
-            ` : ''}
-        `}`;
-
-    return card;
-}
-
-// ===== HU ACTIONS =====
-function confirmHU(idx) {
-    haptic();
-    const item = currentItems[idx];
-    item.countQty = item.countQty || item.sapQty;
-    if (item.countQty !== item.sapQty) {
-        item.status = 'adjusted';
-    } else {
-        item.status = 'confirmed';
-    }
-    renderHUList();
-}
-
-function markMissing(idx) {
-    haptic();
-    const item = currentItems[idx];
-    item.status = item.status === 'missing' ? 'pending' : 'missing';
-    if (item.status === 'missing') item.countQty = 0;
-    renderHUList();
-}
-
-function adjustQty(idx, delta) {
-    haptic();
-    const item = currentItems[idx];
-    item.countQty = Math.max(0, (item.countQty || 0) + delta);
-    if (item.countQty !== item.sapQty && item.countQty > 0) {
-        item.status = 'adjusted';
-    }
-    renderHUList();
-}
-
-function setQty(idx, val) {
-    const item = currentItems[idx];
-    item.countQty = parseFloat(val) || 0;
-    if (item.countQty > 0) {
-        item.status = item.countQty === item.sapQty ? 'confirmed' : 'adjusted';
-    }
-    updatePhase();
-}
-
-function resetHU(idx) {
-    haptic();
-    currentItems[idx].status = 'pending';
-    currentItems[idx].countQty = 0;
-    renderHUList();
-}
-
-function confirmAllHUs() {
-    haptic();
-    let c = 0;
-    currentItems.forEach(item => {
-        if (!item.isExtra && item.status === 'pending') {
-            item.countQty = item.sapQty;
-            item.status = 'confirmed';
-            c++;
-        }
-    });
-    toast(`${c} confirmed`, 'green');
-    renderHUList();
-}
-
-// ===== EXTRA HU INPUT =====
-function showExtraInput() {
-    haptic();
-    const container = document.getElementById('hu-list');
-
-    // Check if input already shown
-    if (document.getElementById('extra-input-form')) {
-        document.getElementById('extra-hu-field').focus();
-        return;
-    }
-
-    const form = document.createElement('div');
-    form.id = 'extra-input-form';
-    form.className = 'extra-input-area';
-    form.innerHTML = `
-        <h3>🔍 Found Extra Item</h3>
-        <input type="text" id="extra-hu-field" class="extra-field mono" placeholder="Scan or type HU (0 if no label)" autofocus>
-        <div style="display:flex;gap:8px;">
-            <input type="text" id="extra-prod-field" class="extra-field" placeholder="Product #" style="flex:1;margin:0;">
-            <input type="number" id="extra-qty-field" class="extra-field mono" placeholder="Qty" style="width:80px;margin:0;text-align:center;">
-        </div>
-        <div id="extra-autofill" style="display:none;margin-top:4px;">
-            <span class="tag" style="background:var(--green-bg);color:var(--green);font-size:9px;">Auto-filled from SAP</span>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px;">
-            <button onclick="cancelExtra()" class="secondary-btn" style="flex:1;padding:14px 0;">Cancel</button>
-            <button onclick="submitExtra()" class="primary-btn blue" style="flex:2">Add Item</button>
-        </div>`;
-    container.insertBefore(form, container.firstChild);
-
-    // Auto-lookup when HU is entered
-    document.getElementById('extra-hu-field').addEventListener('input', (e) => {
-        const hu = e.target.value.trim();
-        if (hu.length >= 8) {
-            const match = huIndex.get(hu);
-            if (match) {
-                document.getElementById('extra-prod-field').value = match.product;
-                document.getElementById('extra-qty-field').value = match.sapQty;
-                document.getElementById('extra-autofill').style.display = 'block';
-            }
-        } else {
-            document.getElementById('extra-autofill').style.display = 'none';
-        }
-    });
-
-    setTimeout(() => document.getElementById('extra-hu-field').focus(), 100);
-}
-
-function cancelExtra() {
-    const form = document.getElementById('extra-input-form');
-    if (form) form.remove();
-}
-
-function submitExtra() {
-    const hu = document.getElementById('extra-hu-field').value.trim();
-    const prod = document.getElementById('extra-prod-field').value.trim();
-    const qty = parseFloat(document.getElementById('extra-qty-field').value) || 0;
-
-    if (!prod || qty <= 0) { toast('Need product # and qty', 'red'); return; }
-    haptic();
-
-    const huMatch = hu ? huIndex.get(hu) : null;
-    const isNoHU = !hu || hu === '0';
-
-    // Add the extra item
-    currentItems.push({
-        hu: hu || '0', product: prod,
-        desc: huMatch ? huMatch.desc : 'FOUND (Extra)',
-        batch: huMatch ? huMatch.batch : '',
-        sapBin: huMatch ? huMatch.sapBin : '',
-        sapQty: huMatch ? huMatch.sapQty : 0,
-        countQty: qty,
-        status: 'confirmed',
-        isExtra: true, note: '', photoUrl: ''
-    });
-
-    cancelExtra();
-    toast('Extra added', 'green');
-    renderHUList();
-
-    // Trigger cycle count prompt for unknown items
-    if ((isNoHU || !huMatch) && prod) {
-        setTimeout(() => showCCTrigger(prod, qty, isNoHU ? 'No HU label on material' : `Unknown HU: ${hu}`), 400);
-    }
-}
-
-// ===== CYCLE COUNT TRIGGER =====
-function showCCTrigger(product, qty, reason) {
-    document.getElementById('cct-product').textContent = product;
-    document.getElementById('cct-qty').textContent = qty;
-    document.getElementById('cct-reason').textContent = reason;
-    document.getElementById('modal-cc-trigger').dataset.product = product;
-    document.getElementById('modal-cc-trigger').dataset.qty = qty;
-    document.getElementById('modal-cc-trigger').dataset.reason = reason;
-    document.getElementById('modal-cc-trigger').style.display = 'flex';
-}
-
-function declineCCTrigger() {
-    document.getElementById('modal-cc-trigger').style.display = 'none';
-    const prod = document.getElementById('modal-cc-trigger').dataset.product;
-    enqueue({ action: 'triggerCycleCount', id: 'CC' + Date.now(), product: prod, reason: document.getElementById('modal-cc-trigger').dataset.reason, triggeredBy: auditorName || 'Counter', status: 'declined', bin: currentBin });
-    toast('Skipped', 'amber');
-}
-
-function acceptCCTrigger() {
-    document.getElementById('modal-cc-trigger').style.display = 'none';
-    const prod = document.getElementById('modal-cc-trigger').dataset.product;
-    const qty = parseFloat(document.getElementById('modal-cc-trigger').dataset.qty) || 0;
-    enqueue({ action: 'triggerCycleCount', id: 'CC' + Date.now(), product: prod, reason: document.getElementById('modal-cc-trigger').dataset.reason, triggeredBy: auditorName || 'Counter', status: 'accepted', bin: currentBin });
-    pccTriggerQty = qty;
-    pccTriggerBin = currentBin;
-    startProductCycle(prod);
-}
-
-// ===== PRODUCT CYCLE COUNT =====
-function startProductCycle(sku) {
-    if (!sku) { toast('Enter a product #', 'red'); return; }
-    sku = sku.trim();
-    const matches = sapMaster.filter(i => i.product === sku);
-    if (!matches.length) { toast('Product not in SAP data', 'red'); return; }
-
-    pccProduct = sku;
-    pccItems = matches.map(i => ({
-        hu: i.hu, sapBin: i.sapBin, sapQty: i.sapQty,
-        batch: i.batch, desc: i.desc,
-        countQty: null, checked: false
-    }));
-
-    document.getElementById('pcc-product').textContent = sku;
-    document.getElementById('pcc-desc').textContent = matches[0].desc || '';
-    switchScreen('product-cc');
-    renderPCCList();
-}
-
-function renderPCCList() {
-    const container = document.getElementById('pcc-list');
-    container.innerHTML = '';
-
-    const checked = pccItems.filter(i => i.checked).length;
-    const total = pccItems.length;
-    document.getElementById('pcc-progress-badge').textContent = `${checked} / ${total}`;
-    document.getElementById('pcc-progress-fill').style.width = total > 0 ? Math.round((checked / total) * 100) + '%' : '0%';
-
-    // Group by bin
-    const groups = {};
-    pccItems.forEach((item, idx) => {
-        if (!groups[item.sapBin]) groups[item.sapBin] = [];
-        groups[item.sapBin].push({ item, idx });
-    });
-
-    Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).forEach(([bin, items]) => {
-        const allDone = items.every(o => o.item.checked);
-        const div = document.createElement('div');
-        div.className = `hu-card ${allDone ? 'confirmed' : ''}`;
-        div.innerHTML = `
-            <div class="hu-header">
-                <span class="hu-id">${bin}</span>
-                ${allDone ? '<span class="hu-status ok">✓ Done</span>' : `<span class="tag" style="background:var(--surface-3);color:var(--text-3);">${items.length} HU${items.length > 1 ? 's' : ''}</span>`}
-            </div>`;
-
-        items.forEach(({ item, idx }) => {
-            const row = document.createElement('div');
-            row.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid var(--border);';
-            row.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span class="mono" style="font-size:11px;font-weight:600;color:var(--text-2);">HU ···${(item.hu || '').slice(-4)}</span>
-                    <span style="font-size:10px;color:var(--text-3);font-weight:600;">SAP: ${item.sapQty}</span>
-                </div>
-                <div class="qty-row">
-                    <button class="qty-stepper" onclick="pccAdjust(${idx},-1)">−</button>
-                    <input type="number" inputmode="numeric" class="qty-input" value="${item.countQty !== null ? item.countQty : ''}" placeholder="${item.sapQty}" onfocus="this.select()" oninput="pccSetQty(${idx},this.value)">
-                    <button class="qty-stepper" onclick="pccAdjust(${idx},1)">+</button>
-                </div>
-                <button onclick="pccConfirm(${idx})" class="hu-btn confirm" style="margin-top:6px;">Confirm ${item.sapQty}</button>`;
-            div.appendChild(row);
-        });
-
-        container.appendChild(div);
-    });
-
-    // Update verify button
-    const allChecked = pccItems.every(i => i.checked);
-    document.getElementById('btn-pcc-verify').className = `primary-btn ${allChecked ? 'blue' : 'disabled'}`;
-}
-
-function pccConfirm(idx) {
-    haptic();
-    pccItems[idx].countQty = pccItems[idx].countQty !== null ? pccItems[idx].countQty : pccItems[idx].sapQty;
-    pccItems[idx].checked = true;
-    renderPCCList();
-}
-
-function pccAdjust(idx, delta) {
-    haptic();
-    pccItems[idx].countQty = Math.max(0, (pccItems[idx].countQty || 0) + delta);
-    if (pccItems[idx].countQty > 0) pccItems[idx].checked = true;
-    renderPCCList();
-}
-
-function pccSetQty(idx, val) {
-    pccItems[idx].countQty = val === '' ? null : (parseFloat(val) || 0);
-    if (pccItems[idx].countQty !== null) pccItems[idx].checked = true;
-    renderPCCList();
-}
-
-function exitProductCC() {
-    if (pccItems.some(i => i.checked) && !confirm('Leave product count? Progress will be lost.')) return;
-    pccProduct = '';
-    pccItems = [];
-    switchScreen('setup');
-}
-
-// ===== VERIFICATION =====
-function verifyProductCC() {
-    if (!pccItems.every(i => i.checked)) { toast('Count all bins first', 'amber'); return; }
-    haptic();
-
-    const sapTotal = pccItems.reduce((s, i) => s + i.sapQty, 0);
-    const floorTotal = pccItems.reduce((s, i) => s + (i.countQty || 0), 0) + pccTriggerQty;
-    const variance = floorTotal - sapTotal;
-    const isMatch = variance === 0;
-
-    // Log all items
-    const itemsToLog = pccItems.map(i => ({
-        hu: i.hu, product: pccProduct, desc: i.desc, batch: i.batch,
-        sapBin: i.sapBin, scannedBin: i.sapBin,
-        sapQty: i.sapQty, countQty: i.countQty || 0,
-        type: (i.countQty || 0) === i.sapQty ? 'ok' : 'adj',
-        note: '', photoUrl: ''
-    }));
-
-    enqueue({ action: 'logAudit', user: auditorName || 'Counter', bin: `PRODUCT: ${pccProduct}`, items: itemsToLog });
-
-    // Show verification screen
-    const content = document.getElementById('verify-content');
-    content.innerHTML = `
-        <div class="verify-card">
-            <div class="verify-header">
-                <div class="v-icon">${isMatch ? '✅' : '⚠️'}</div>
-                <h3>${pccProduct}</h3>
-                <p>${pccItems[0]?.desc || ''}</p>
-            </div>
-            <div class="verify-row"><span class="vr-label">SAP System Total</span><span class="vr-value">${sapTotal}</span></div>
-            <div class="verify-row"><span class="vr-label">Floor Count Total</span><span class="vr-value" style="color:var(--accent)">${floorTotal}</span></div>
-            ${pccTriggerQty > 0 ? `<div class="verify-row"><span class="vr-label">Includes Extra Found</span><span class="vr-value" style="color:var(--cyan)">+${pccTriggerQty}</span></div>` : ''}
-            <div class="verify-row"><span class="vr-label">Variance</span><span class="vr-value" style="color:${isMatch ? 'var(--green)' : 'var(--red)'}">${variance >= 0 ? '+' : ''}${variance}</span></div>
-            <div class="verify-result ${isMatch ? 'match' : 'mismatch'}">
-                <h4>${isMatch ? '✓ Totals Match' : '✗ Variance Detected'}</h4>
-                <p>${isMatch
-                    ? 'The floor total (including the extra found) matches SAP. This was likely a movement or re-label.'
-                    : `Floor has ${Math.abs(variance)} ${variance > 0 ? 'more than' : 'fewer than'} SAP expects. This needs investigation.`
-                }</p>
-            </div>
-        </div>
-        <div class="section-title">Bin Breakdown</div>
-        ${pccItems.map(i => `
-            <div class="report-card">
-                <div>
-                    <div class="mono" style="font-size:12px;font-weight:700;color:var(--accent);">${i.sapBin}</div>
-                    <div style="font-size:10px;color:var(--text-3);font-weight:600;">HU ···${(i.hu || '').slice(-4)}</div>
-                </div>
-                <div style="text-align:right;">
-                    <span class="mono" style="font-size:14px;font-weight:700;">${i.countQty || 0}</span>
-                    <span style="font-size:10px;color:var(--text-3);"> / ${i.sapQty}</span>
-                    ${(i.countQty || 0) !== i.sapQty ? `<div style="font-size:9px;font-weight:700;color:var(--amber);">Δ ${(i.countQty || 0) - i.sapQty}</div>` : ''}
-                </div>
-            </div>
-        `).join('')}`;
-
-    switchScreen('verify');
-    toast(isMatch ? 'Totals match!' : 'Variance detected', isMatch ? 'green' : 'amber');
-}
-
-function closeVerification() {
-    pccProduct = '';
-    pccItems = [];
-    pccTriggerQty = 0;
-    pccTriggerBin = '';
-    switchScreen('setup');
-    buildAisleGrid();
-    syncCloud();
-}
-
-// ===== FINALIZE BIN =====
-function finalizeBin() {
-    const pending = currentItems.filter(i => i.status === 'pending');
-    if (pending.length > 0) { toast(`${pending.length} unchecked`, 'red'); return; }
-    if (!currentBin) return;
-    haptic();
-
-    const itemsToLog = currentItems.length === 0
-        ? [{ hu: 'EMPTY_BIN', product: 'NONE', desc: 'Confirmed Empty', batch: '', sapBin: '', scannedBin: currentBin, sapQty: 0, countQty: 0, type: 'ok', note: '', photoUrl: '' }]
-        : currentItems.map(i => {
-            let type = 'ok';
-            if (i.status === 'missing') type = 'miss';
-            else if (i.isExtra) type = 'inactive';
-            else if (i.countQty !== i.sapQty) type = 'adj';
-            return {
-                hu: i.hu, product: i.product, desc: i.desc, batch: i.batch,
-                sapBin: i.sapBin, scannedBin: currentBin,
-                sapQty: i.sapQty, countQty: i.countQty,
-                type, note: i.note || '', photoUrl: i.photoUrl || ''
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fd),'All Audit Data');
+
+    // Sheet 2: "Open Actions" — unresolved only, same columns
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(fd.filter(r=>r.Resolution===''&&r.Type!=='ok')),'Open Actions');
+
+    // Sheet 3: "Summary"
+    const items=report.filter(i=>i.hu!=='EMPTY_BIN');
+    const{rate}=computeRate();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet([
+        {Metric:'Date',Value:ds},{Metric:'Week',Value:wk},
+        {Metric:'Total Items Audited',Value:items.length},
+        {Metric:'Verified OK',Value:items.filter(i=>i.type==='ok').length},
+        {Metric:'Movements',Value:items.filter(i=>i.type==='move').length},
+        {Metric:'Adjustments',Value:items.filter(i=>i.type==='adj').length},
+        {Metric:'Missing',Value:items.filter(i=>i.type==='miss').length},
+        {Metric:'Extra / Inactive',Value:items.filter(i=>i.type==='inactive').length},
+        {Metric:'Resolved',Value:items.filter(isRes).length},
+        {Metric:'Unresolved',Value:items.filter(i=>i.type!=='ok'&&!isRes(i)).length},
+        {Metric:'Photos Attached',Value:items.filter(i=>validPhoto(i.photoUrl)).length},
+        {Metric:'Bins Completed',Value:new Set(report.map(i=>i.scanBin)).size},
+        {Metric:'Count Rate',Value:rate+' bins/hr'},
+        {Metric:'Inv. Accuracy (Raw)',Value:items.length>0?Math.round(((items.length-items.filter(i=>i.type==='adj'||i.type==='miss'||i.type==='inactive').length)/items.length)*100)+'%':'—'},
+        {Metric:'Bin Accuracy (Raw)',Value:items.length>0?Math.round(((items.length-items.filter(i=>i.type==='move'||i.type==='miss'||i.type==='inactive').length)/items.length)*100)+'%':'—'},
+        {Metric:'CC Triggers Total',Value:triggers.length},
+        {Metric:'CC Accepted',Value:triggers.filter(t=>t.status==='accepted').length},
+        {Metric:'CC Declined',Value:triggers.filter(t=>t.status==='declined').length},
+    ]),'Summary');
+
+    // Sheet 4: "CC Triggers"
+    if(triggers.length>0){
+        XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(triggers.map(t=>{
+            const counted=report.filter(r=>r.prod===t.product&&r.hu!=='EMPTY_BIN');
+            return{
+                'Product':t.product,'Reason':t.reason,'Triggered By':t.triggeredBy,
+                'Status':t.status,'Source Bin':t.sourceBin,
+                'SAP Total':counted.reduce((s,r)=>s+r.sapQty,0),
+                'Floor Total':counted.reduce((s,r)=>s+r.scanQty,0),
+                'Variance':counted.reduce((s,r)=>s+r.scanQty,0)-counted.reduce((s,r)=>s+r.sapQty,0),
+                'Timestamp':t.timestamp?new Date(t.timestamp).toLocaleString():''
             };
-        });
-
-    completedBins.add(currentBin);
-    localStorage.setItem('doneBins2', JSON.stringify([...completedBins]));
-
-    itemsToLog.forEach(item => cloudReport.push({ scanBin: item.scannedBin, ...item }));
-    enqueue({ action: 'logAudit', user: auditorName || 'Counter', bin: currentBin, items: itemsToLog });
-
-    toast('Bin finalized', 'blue');
-    stepBin(1); // Auto-advance to next bin
-}
-
-// ===== FRESH CYCLE (simplified — uses product cycle count flow) =====
-function startFreshCycle() {
-    // For now, route to the first Fresh SKU that has SAP data
-    // A full fresh mode would iterate through all 14 — this is the simplified 2.0 entry point
-    const available = FRESH_SKUS.filter(sku => sapMaster.some(i => i.product === sku));
-    if (!available.length) { toast('No FRESH items in SAP data', 'red'); return; }
-    // Use the full product cycle count flow for each SKU
-    startProductCycle(available[0]);
-    // TODO: In next iteration, build a multi-SKU fresh flow that chains through all 14
-}
-
-// ===== REPORT VIEW =====
-function renderReport() {
-    const content = document.getElementById('report-content');
-    const items = cloudReport.filter(i => i.hu !== 'EMPTY_BIN');
-    const disc = items.filter(i => i.type !== 'ok');
-
-    content.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
-            <div class="report-stat"><div class="val" style="color:var(--accent)">${new Set(cloudReport.map(i=>i.scanBin)).size}</div><div class="label">Bins Done</div></div>
-            <div class="report-stat"><div class="val" style="color:var(--red)">${disc.length}</div><div class="label">Discrepancies</div></div>
-            <div class="report-stat"><div class="val" style="color:var(--green)">${items.length > 0 ? Math.round(((items.length - disc.length) / items.length) * 100) + '%' : '—'}</div><div class="label">Accuracy</div></div>
-        </div>
-        <div class="section-title">Recent Discrepancies</div>
-        ${disc.length === 0 ? '<div class="empty-state"><div class="es-icon">✨</div><p>No discrepancies yet</p></div>' : ''}
-        ${disc.slice(-30).reverse().map(i => {
-            const tc = { miss: 'var(--red)', adj: 'var(--amber)', inactive: 'var(--purple)', move: 'var(--accent)' }[i.type] || 'var(--text-3)';
-            return `<div class="report-card"><div><div style="font-size:13px;font-weight:700;">${i.prod || i.product}</div><div class="mono" style="font-size:10px;color:var(--text-3);">${i.scanBin} · HU ${i.hu}</div></div><div style="text-align:right;"><span class="mono" style="font-size:14px;font-weight:700;">${i.scanQty || i.countQty}/${i.sapQty}</span><div style="font-size:9px;font-weight:800;text-transform:uppercase;color:${tc};">${i.type}</div></div></div>`;
-        }).join('')}`;
-}
-
-// ===== INIT =====
-window.onload = () => {
-    if (auditorName) document.getElementById('name-display').textContent = auditorName;
-    else setTimeout(showNameModal, 500);
-
-    if (sapMaster.length > 0) {
-        buildIndexes();
-        showSetupReady();
-        syncCloud();
-    } else {
-        pullCloudData();
+        })),'CC Triggers');
     }
-    updateSyncDot();
-    setInterval(syncCloud, 10000);
-    setInterval(drainQueue, 15000);
-};
+
+    XLSX.writeFile(wb,`Cycle_Count_${now.toISOString().split('T')[0]}.xlsx`);
+}
+
+document.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;if(e.key==='1')setTab('move');else if(e.key==='2')setTab('adj');else if(e.key==='3')setTab('miss');else if(e.key==='4')setTab('inactive');else if(e.key==='5')setTab('ok');else if(e.key==='6')setTab('triggers');else if(e.key==='e'||e.key==='E')exportExcel();else if(e.key==='/'){e.preventDefault();document.getElementById('search').focus();}else if(e.key==='Escape')closeDetail();});
+
+initMap();initAislePicker();fetchData();setInterval(fetchData,5000);
 </script>
-
-<!-- SheetJS for local file parsing -->
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
 </body>
 </html>
